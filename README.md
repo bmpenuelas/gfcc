@@ -9,8 +9,8 @@ The two are fundamentally different and therefore technically they won't be able
 
 #### :information_source: Available commands:
 
-:pushpin: gitcase status
+:pushpin: **`gitcase status`**
 
 | git equivalent | description | clearcase actions |
 | --- | --- | --- |
-| git status | List all new or modified files. | ´cleartool lsprivate´ to get new files. ´cleartool lsco -cview -a -s´ to get all the checked out files, then find those which have been actually modified with ´cleartool diff -predecessor´. |
+| `git status` | List all new or modified files. | `cleartool lsprivate` to get new files. `cleartool lsco -cview -a -s` to get all the checked out files, then find those which have been actually modified with `cleartool diff -predecessor`. |
