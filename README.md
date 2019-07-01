@@ -51,6 +51,8 @@ These do not have any git equivalent because they are exclusive to the ClearCase
 | --- | --- | --- |
 | None | Checkout in the ClearCase sense. | `cleartool co -unr -nc` per element, recursively if selected. |
 
+If no parameters are specified, *recursive* from *cwd* will be performed.
+
 `-r` `--recursive` If a directory is provided (defaults to *cwd*), apply to all files and subdirectories recursively.
 
 `[item]` File/dir to ccheckout.
@@ -63,6 +65,8 @@ These do not have any git equivalent because they are exclusive to the ClearCase
 | git equivalent | description | clearcase actions |
 | --- | --- | --- |
 | None | Checkin in the ClearCase sense. | `cleartool ci -c` per element, recursively if selected. |
+
+If no parameters are specified, *recursive* from *cwd* will be performed.
 
 `-m` `--message` Comment or description of the checkin *(made mandatory)*.
 
@@ -80,6 +84,8 @@ These do not have any git equivalent because they are exclusive to the ClearCase
 | git equivalent | description | clearcase actions |
 | --- | --- | --- |
 | None | Uncheckout in the ClearCase sense. | `cleartool unco` `-keep` or `-rm` per element, recursively if selected. |
+
+If no parameters are specified, *recursive* from *cwd* will be performed.
 
 `-r` `--recursive` Apply to all subdirectories and files recursively.
 

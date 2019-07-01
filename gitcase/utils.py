@@ -1,13 +1,12 @@
 import re
 import subprocess
 
-from   os import path, getcwd, walk
-
+from   os      import path, getcwd, walk
+from   os.path import abspath
 
 
 # Constants
 INDENTATION = '  '
-
 
 
 def run_cmd_command(cmd, get_lines=False):
@@ -32,7 +31,7 @@ def list_checked_out(directory=None):
     if not directory:
         result = [item for item in output if item]
     else:
-        directory = path.abspath(directory)
+        directory = abspath(directory)
         result = [path.relpath(item, getcwd()) for item in output if item and item.startswith(directory)]
     return result
 
@@ -61,7 +60,7 @@ def list_untracked(directory):
     clearcase_cmd_find_untracked = ['cleartool', 'ls', '-rec', '-view_only']
     output = run_cmd_command(clearcase_cmd_find_untracked, True)[0]
     if directory:
-        directory = None if path.abspath(directory) == getcwd() else path.relpath(path.abspath(directory), getcwd())
+        directory = None if abspath(directory) == getcwd() else path.relpath(abspath(directory), getcwd())
     return list(filter(lambda x: x and ('Rule' not in x) and (not directory or x.startswith(directory) or x.startswith('./' + directory)), output))
 
 

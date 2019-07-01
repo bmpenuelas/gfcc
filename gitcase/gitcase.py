@@ -108,6 +108,7 @@ parser_ccheckout.add_argument(
 def handler_ccheckout(res):
     recursive = getattr(res, 'recursive', None)
     selected_item = getattr(res, 'item', None)
+    recursive = recursive if selected_item else True
     selected_item = abspath(selected_item or getcwd())
 
     utils.cc_checkx('out', recursive, selected_item)
@@ -149,6 +150,7 @@ def handler_ccheckin(res):
     recursive = getattr(res, 'recursive', None)
     identical = getattr(res, 'identical', None)
     selected_item = getattr(res, 'item', None)
+    recursive = recursive if selected_item else True
     selected_item = abspath(selected_item or getcwd())
 
     utils.cc_checkx('in', recursive, selected_item, message=message, identical=identical)
@@ -191,6 +193,7 @@ def handler_uncheckout(res):
     discard = getattr(res, 'discard', None)
     keep = getattr(res, 'keep', None)
     selected_item = getattr(res, 'item', None)
+    recursive = recursive if selected_item else True
     selected_item = abspath(selected_item or getcwd())
 
     utils.cc_checkx('un', recursive, selected_item, keep=(keep or not discard))
