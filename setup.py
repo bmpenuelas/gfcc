@@ -23,9 +23,12 @@ setup(
     install_requires=[
     ],
     scripts=[
+        # 'gitcase/bin/gitcase'
     ],
     entry_points={
         'console_scripts': [
+            'gitcase=gitcase.gitcase:main',
+            'gitc=gitcase.gitcase:main',
         ]
     }
 )
