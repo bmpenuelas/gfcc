@@ -47,23 +47,20 @@ def handler_status(res):
     checked_out = getattr(res, 'checked-out', None)
     item = getattr(res, 'item', None)
 
+    modified_files, untracked, checked_out_unmodified = utils.get_status(
+        get_modified=True, get_untracked=(untracked_files != 'no'), get_checkedout_unmodified=(checked_out),
+        item=item, whole_view=whole_view
+    )
     utils.print_indent('Modified files:', 1)
-    directory = item if item else (None if whole_view else getcwd())
-    checked_out_files = utils.list_checked_out(directory)
-    modifications = utils.find_modifications(checked_out_files)
-    modified_files = [utils.filename_from_diff(changed) for changed in modifications]
     utils.print_indent((modified_files or ['None.']), 2)
 
     if untracked_files != 'no':
-        untracked = utils.list_untracked(directory)
         utils.print_indent('Untracked files:', 1)
         utils.print_indent((untracked or ['None.']), 2)
 
     if checked_out:
         utils.print_indent('Checked-out files unmodified:', 1)
-        checked_out_unmodified = list(set(checked_out_files) - set(modified_files))
         utils.print_indent((checked_out_unmodified or ['None.']), 2)
-
 
 parser_status.set_defaults(func=handler_status)
 
@@ -86,8 +83,19 @@ def handler_diff(res):
     for modification in modifications:
         print(modification)
 
-
 parser_diff.set_defaults(func=handler_diff)
+
+
+# Subparser for: gitcase clean
+parser_clean = subparsers.add_parser('clean', aliases=['cl'], help='Remove untracked files.')
+
+def handler_clean(res):
+    _, untracked, _ = utils.get_status(get_untracked=True)
+    utils.rm(untracked, r=True)
+    for file_deleted in untracked:
+        utils.print_indent('Removed: ' + file_deleted, 1)
+
+parser_clean.set_defaults(func=handler_clean)
 
 
 # Subparser for: gitcase ccheckout
@@ -112,7 +120,6 @@ def handler_ccheckout(res):
     selected_item = abspath(selected_item or getcwd())
 
     utils.cc_checkx('out', recursive, selected_item)
-
 
 parser_ccheckout.set_defaults(func=handler_ccheckout)
 
@@ -155,7 +162,6 @@ def handler_ccheckin(res):
 
     utils.cc_checkx('in', recursive, selected_item, message=message, identical=identical)
 
-
 parser_ccheckin.set_defaults(func=handler_ccheckin)
 
 
@@ -197,7 +203,6 @@ def handler_uncheckout(res):
     selected_item = abspath(selected_item or getcwd())
 
     utils.cc_checkx('un', recursive, selected_item, keep=(keep or not discard))
-
 
 parser_uncheckout.set_defaults(func=handler_uncheckout)
 

@@ -2,7 +2,7 @@ import re
 import subprocess
 
 from   os      import path, getcwd, walk
-from   os.path import abspath
+from   os.path import abspath, join, isdir
 
 
 # Constants
@@ -17,6 +17,14 @@ def run_cmd_command(cmd, get_lines=False):
     return (decoded_out, decoded_err) if not get_lines else (decoded_out.split('\n'), decoded_err.split('\n'))
 
 
+def rm(files, r=False):
+    if isinstance(files, list):
+        return [rm(file_i) for file_i in files]
+    else:
+        clearcase_cmd_rm = ['rm', '-' + ('r' if r and isdir(files) else '') + 'f', abspath(files)]
+        return run_cmd_command(clearcase_cmd_rm)
+
+
 def print_indent(text, indent):
     if not isinstance(text, list):
         text = [text]
@@ -24,7 +32,7 @@ def print_indent(text, indent):
         print(indent * INDENTATION + element)
 
 
-def list_checked_out(directory=None):
+def list_checked_out(directory=None, absolute=False):
     ''' List checked out takes the whole view/directory and returns abs/rel paths of the files. '''
     clearcase_cmd_list_checked_out = ['cleartool', 'lsco', '-cview', '-a', '-s']
     output = run_cmd_command(clearcase_cmd_list_checked_out, True)[0]
@@ -32,7 +40,8 @@ def list_checked_out(directory=None):
         result = [item for item in output if item]
     else:
         directory = abspath(directory)
-        result = [path.relpath(item, getcwd()) for item in output if item and item.startswith(directory)]
+        result = [(path.relpath(item, getcwd()) if not absolute else item) for item in output
+                  if item and item.startswith(directory)]
     return result
 
 
@@ -108,6 +117,7 @@ def cc_checkx(select, recursive, selected_item, **kwargs):
             'fn': cc_uncheckout,
             'parameters': ['keep']
         },
+        'reserved_str': 'is checked out reserved',
     }
 
     arguments = {name: kwargs[name] for name in config[select]['parameters']}
@@ -115,13 +125,28 @@ def cc_checkx(select, recursive, selected_item, **kwargs):
     file_list = []
     if recursive and selected_item and path.isdir(selected_item):
         for root, _, files in walk(selected_item):
-            file_list.extend([root] + files)
+            file_list.extend([root] + [join(root, file_i) for file_i in files])
     else:
         file_list = [selected_item]
     for file_i in file_list:
-        if (select == 'in' and filename_from_diff(find_modifications(file_i))) or (select != 'in'):
+        if (select == 'in' and (file_i in list_checked_out(getcwd(), True)) and find_modifications(file_i)) \
+         or (select != 'in'):
             result = config[select]['fn'](file_i, **arguments)
             if any([(config[select]['succes_str'] in line.lower()) for line in result[0]]):
                 print_indent(config[select]['succes_print'] + file_i, 1)
+            elif any([(config['reserved_str'] in line.lower()) for line in result[1]]):
+                print_indent('ERROR File is reserved: ' + file_i, 1)
             elif file_list == [selected_item]:
-                print_indent('Ignored: ' + selected_item, 1)
+                print_indent('Ignored: ' + file_i, 1)
+
+def get_status(get_modified=False, get_untracked=False, get_checkedout_unmodified=False,
+               item=None, whole_view=False):
+    directory = item if item else (None if whole_view else getcwd())
+    checked_out_files = list_checked_out(directory)
+    modifications = find_modifications(checked_out_files)
+
+    modified_files = [filename_from_diff(changed) for changed in modifications] if get_modified else None
+    untracked = list_untracked(directory) if get_untracked else None
+    checked_out_unmodified = list(set(checked_out_files) - set(modified_files)) if get_checkedout_unmodified else None
+
+    return (modified_files, untracked, checked_out_unmodified)

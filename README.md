@@ -42,6 +42,17 @@ Available options:
 <br>
 <br>
 
+:pushpin: **`gitcase clean`**
+
+| git equivalent | description | clearcase actions |
+| --- | --- | --- |
+| `git clean` | Remove untracked files. | `rm -f`, `-r` for directories. |
+
+Clean the *current working directory* (recursively).
+
+<br>
+<br>
+
 ### :information_source: ClearCase-only helper wrappers:
 These do not have any git equivalent because they are exclusive to the ClearCase philosophy. The following are git-friendly wrappers that automate repetitive CC tasks:
 
