@@ -8,7 +8,7 @@ Some companies keep (typically older) projects in ClearCase, this should make wo
 <br>
 
 ### :information_source: Available equivalent commands:
-Commands that provide as-close-as possible syntax and functionality to the most used git commands.
+These commands provide as-close-as possible syntax and functionality to the most used ones in git.
 
 :pushpin: **`gitcase status`**
 
@@ -46,7 +46,7 @@ Available options:
 
 | git equivalent | description | clearcase actions |
 | --- | --- | --- |
-| `git clean` | Remove untracked files. | `rm -f`, `-r` for directories. |
+| `git clean` | Remove untracked files. | `rm -f`, `-r` for the files directories that are not under version control. |
 
 Clean the *current working directory* (recursively).
 
