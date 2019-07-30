@@ -1,16 +1,18 @@
-# GitCase
-## Git commands for ClearCase
+# gfcc
+## git flavoured ClearCase
 
-The goal is to have a behavior as similar as possible to the most common git commands while using clearcase.
+*gfcc* provides a layer of automation on top of ClearCase. The goal is twofold: speed-up working with cc, and provide additional checks for a more robust workflow.
 
-Some companies keep (typically older) projects in ClearCase, this should make working with them a bit more efficient for git users. The two are fundamentally different and therefore technically they won't be able to behave exactly the same way, so feel free to use the ones that are useful for you and tweak, request or contribute other commands.
+Some companies keep (typically older) projects in ClearCase, this project should also make working with them a bit more efficient for git users. The two are fundamentally different and therefore technically they won't be able to behave exactly the same way, so feel free to use the ones that are useful for you and tweak, request or contribute other commands.
 
 <br>
+<br>
 
-### :information_source: Available equivalent commands:
-These commands provide as-close-as possible syntax and functionality to the most used ones in git.
+### :information_source: git-like commands:
+These commands provide as-close-as-possible syntax and functionality to the most used ones in git.
 
-:pushpin: **`gitcase status`**
+
+:pushpin: **`gfcc status`**
 
 | git equivalent | description | clearcase actions |
 | --- | --- | --- |
@@ -31,7 +33,7 @@ Available options:
 <br>
 <br>
 
-:pushpin: **`gitcase diff`**
+:pushpin: **`gfcc diff`**
 
 | git equivalent | description | clearcase actions |
 | --- | --- | --- |
@@ -44,7 +46,7 @@ Available options:
 <br>
 <br>
 
-:pushpin: **`gitcase log`**
+:pushpin: **`gfcc log`**
 
 | git equivalent | description | clearcase actions |
 | --- | --- | --- |
@@ -63,7 +65,7 @@ Available options:
 <br>
 <br>
 
-:pushpin: **`gitcase clean`**
+:pushpin: **`gfcc clean`**
 
 | git equivalent | description | clearcase actions |
 | --- | --- | --- |
@@ -76,10 +78,11 @@ Clean the *current working directory* (recursively). By default it will only rem
 <br>
 <br>
 
-### :information_source: ClearCase-only helper wrappers:
-These do not have any git equivalent because they are exclusive to the ClearCase philosophy. The following are git-friendly wrappers that automate repetitive CC tasks:
+### :information_source: ClearCase automation commands:
+These do not have any git equivalent because they are exclusive to the ClearCase philosophy, they automate repetitive CC tasks or provide additional automated checks:
 
-:pushpin: **`gitcase ccheckout`**
+
+:pushpin: **`gfcc ccheckout`**
 
 | description | clearcase actions |
 | --- | --- |
@@ -96,7 +99,7 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 <br>
 <br>
 
-:pushpin: **`gitcase ccheckin`**
+:pushpin: **`gfcc ccheckin`**
 
 | description | clearcase actions |
 | --- | --- |
@@ -117,7 +120,7 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 <br>
 <br>
 
-:pushpin: **`gitcase uncheckout`**
+:pushpin: **`gfcc uncheckout`**
 
 | description | clearcase actions |
 | --- | --- |
@@ -134,7 +137,7 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 <br>
 <br>
 
-:pushpin: **`gitcase diffcs`**
+:pushpin: **`gfcc diffcs`**
 
 | description | clearcase actions |
 | --- | --- |
@@ -157,7 +160,7 @@ If no parameters are provided, it will diff your current cs against your last sa
 <br>
 <br>
 
-:pushpin: **`gitcase savecs`**
+:pushpin: **`gfcc savecs`**
 
 | description | clearcase actions |
 | --- | --- |
@@ -181,7 +184,7 @@ Configspec files location:
 <br>
 <br>
 
-:pushpin: **`gitcase setcs`**
+:pushpin: **`gfcc setcs`**
 
 | description | clearcase actions |
 | --- | --- |

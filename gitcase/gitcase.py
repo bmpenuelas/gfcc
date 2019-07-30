@@ -4,7 +4,7 @@ import argparse
 
 from   os      import getcwd, chdir, walk, remove
 from   os.path import abspath, relpath, isdir, basename, join, exists
-from   gitcase import utils
+from   gfcc import utils
 
 
 # Command parser
@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser()
 subparsers = parser.add_subparsers()
 
 
-# Subparser for: gitcase status
+# Subparser for: gfcc status
 parser_status = subparsers.add_parser('status', aliases=['s'], help='List all new or modified files.')
 parser_status.add_argument(
     '-u', '--untracked',
@@ -68,7 +68,7 @@ def handler_status(res):
 parser_status.set_defaults(func=handler_status)
 
 
-# Subparser for: gitcase diff
+# Subparser for: gfcc diff
 parser_diff = subparsers.add_parser('diff', aliases=['d'], help='Show differences in modified files.')
 parser_diff.add_argument(
     '-g', '--graphical',
@@ -104,7 +104,7 @@ def handler_diff(res):
 parser_diff.set_defaults(func=handler_diff)
 
 
-# Subparser for: gitcase log
+# Subparser for: gfcc log
 parser_log = subparsers.add_parser('log', aliases=['d'], help='Show logerences in modified files.')
 parser_log.add_argument(
     '-l', '--lines',
@@ -158,7 +158,7 @@ def handler_log(res):
 parser_log.set_defaults(func=handler_log)
 
 
-# Subparser for: gitcase clean
+# Subparser for: gfcc clean
 parser_clean = subparsers.add_parser('clean', aliases=['cl'], help='Remove untracked files.')
 parser_clean.add_argument(
     '-a', '--clean_all',
@@ -179,7 +179,7 @@ def handler_clean(res):
 parser_clean.set_defaults(func=handler_clean)
 
 
-# Subparser for: gitcase ccheckout
+# Subparser for: gfcc ccheckout
 parser_ccheckout = subparsers.add_parser('ccheckout', aliases=['co'], help='Checkout file/dir/recursively in the ClearCase sense.')
 parser_ccheckout.add_argument(
     '-r', '--recursive',
@@ -217,7 +217,7 @@ def handler_ccheckout(res):
 parser_ccheckout.set_defaults(func=handler_ccheckout)
 
 
-# Subparser for: gitcase ccheckin
+# Subparser for: gfcc ccheckin
 parser_ccheckin = subparsers.add_parser('ccheckin', aliases=['ci'], help='Checkin file/dir/recursively in the ClearCase sense.')
 parser_ccheckin.add_argument(
     '-m', '--message',
@@ -266,7 +266,7 @@ def handler_ccheckin(res):
 parser_ccheckin.set_defaults(func=handler_ccheckin)
 
 
-# Subparser for: gitcase uncheckout
+# Subparser for: gfcc uncheckout
 parser_uncheckout = subparsers.add_parser('uncheckout', aliases=['un', 'unco'], help='Un-checkout file/dir/recursively in the ClearCase sense.')
 parser_uncheckout.add_argument(
     '-r', '--recursive',
@@ -300,7 +300,7 @@ def handler_uncheckout(res):
 parser_uncheckout.set_defaults(func=handler_uncheckout)
 
 
-# Subparser for: gitcase diffcs
+# Subparser for: gfcc diffcs
 parser_diffcs = subparsers.add_parser('diffcs', aliases=['dcs'], help='Diff the files selected by two Config-Spec files.')
 parser_diffcs.add_argument(
     '-f', '--files',
@@ -437,7 +437,7 @@ def handler_diffcs(res):
 parser_diffcs.set_defaults(func=handler_diffcs)
 
 
-# Subparser for: gitcase savecs
+# Subparser for: gfcc savecs
 parser_savecs = subparsers.add_parser('savecs', aliases=['scs'], help='Save your current cs state in cc.')
 parser_savecs.add_argument(
     '-b', '--block',
@@ -506,7 +506,7 @@ def handler_savecs(res):
 parser_savecs.set_defaults(func=handler_savecs)
 
 
-# Subparser for: gitcase setcs
+# Subparser for: gfcc setcs
 parser_setcs = subparsers.add_parser('setcs', aliases=['scs'], help='Save your current cs state in cc.')
 parser_setcs.add_argument(
     '-b', '--block',

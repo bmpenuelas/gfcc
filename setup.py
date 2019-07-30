@@ -5,16 +5,16 @@ def readme():
         return f.read()
 
 setup(
-    name='gitcase',
+    name='gfcc',
     version='0.1',
-    description='Git commands for ClearCase',
+    description='A layer of automation for ClearCase with a touch of git flavour',
     long_description=readme(),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3',
     ],
     keywords='git clearcase cleartool',
-    url='https://github.com/bmpenuelas/gitcase',
+    url='https://github.com/bmpenuelas/gfcc',
     author='Borja Penuelas',
     author_email='bmpenuelas@gmail.com',
     license='MIT',
@@ -23,12 +23,10 @@ setup(
     install_requires=[
     ],
     scripts=[
-        # 'gitcase/bin/gitcase'
     ],
     entry_points={
         'console_scripts': [
-            'gitcase=gitcase.gitcase:main',
-            'gitc=gitcase.gitcase:main',
+            'gfcc=gfcc.gfcc:main',
         ]
     }
 )

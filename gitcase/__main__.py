@@ -1,2 +1,2 @@
-from gitcase import gitcase
-gitcase.main()
+from gfcc import gfcc
+gfcc.main()
