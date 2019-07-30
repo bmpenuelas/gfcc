@@ -105,7 +105,7 @@ parser_diff.set_defaults(func=handler_diff)
 
 
 # Subparser for: gfcc log
-parser_log = subparsers.add_parser('log', aliases=['d'], help='Show logerences in modified files.')
+parser_log = subparsers.add_parser('log', aliases=['l'], help='Show logerences in modified files.')
 parser_log.add_argument(
     '-l', '--lines',
     dest='lines',
