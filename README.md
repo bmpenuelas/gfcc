@@ -8,6 +8,22 @@ Some companies keep (typically older) projects in ClearCase, this project should
 <br>
 <br>
 
+#### Install:
+* Easiest *(requires internet connection)*:
+
+    `pip3 install gfcc`
+
+* Manual:
+
+    Download or clone the project, and run `pip3 install --user -e .` inside the `/gfcc` directory, at the same level as `setup.py` (not inside /gfcc/gfcc).
+
+Now you can type `gfcc` add access all the commands.
+
+(In more restrictive environments you might need to run it as `python3 -m gfcc` and create an alias like `alias gfcc="python3 -m gfcc"` if using the *bash* shell or `alias gfcc 'python3 -m gfcc'` if using *csh* or *tcsh* )
+
+<br>
+<br>
+
 ### :information_source: git-like commands:
 These commands provide as-close-as-possible syntax and functionality to the most used ones in git.
 
@@ -151,7 +167,7 @@ If no parameters are provided, it will diff your current cs against your last sa
 
 `-b` `--block` Block name (to diff against a block configspec).
 
-`-v` `--view` Provided a view name to compare against it's current cs instead of a cs file.
+`-v` `--view` Provide a view name to compare against it's current cs instead of a cs file.
 
 `-g` `--gen_rules` Generate cs rules so that you get the same versions as others.
 
@@ -191,6 +207,8 @@ Configspec files location:
 | Apply the provided cs in your view. | Identify the source for the cs content and apply it using `cleartool setcs`. |
 
 `-b` `--block` Specify block (needed if it can not be automatically identified because you are not working inside the block file-tree, or want to take the cs from a different block). Source path will be *src/`blockname`/cs* .
+
+`-v` `--view` Copy the current CS in another view to this one.
 
 `-k` `--backup` Save current CS in a backup file before applying the new CS.
 

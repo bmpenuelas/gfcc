@@ -29,6 +29,18 @@ def run_cmd_command(cmd, get_lines=False, background=False):
         return (decoded_out, decoded_err) if not get_lines else (decoded_out.split('\n'), decoded_err.split('\n'))
 
 
+def exists_try(filepath):
+    if exists(filepath):
+        return True
+    try:
+        with open(filepath) as f:
+            if f:
+                return True
+    except FileNotFoundError:
+        pass
+    return False
+
+
 def rm(files, r=False):
     if isinstance(files, list):
         return [rm(file_i) for file_i in files]
@@ -38,10 +50,10 @@ def rm(files, r=False):
 
 
 def print_indent(text, indent):
-    if not isinstance(text, list):
-        text = [text]
-    for element in text:
-        print(indent * INDENTATION + element)
+    if isinstance(text, (tuple, list)):
+        return [print_indent(element, indent) for element in text]
+    else:
+        return print(indent * INDENTATION + text)
 
 
 def get_date_string():
@@ -234,7 +246,10 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
             elif single_item:
                 print_indent('Ignored: ' + file_i, 1)
             else:
-                print_indent(result + file_i, 1)
+                if False: # Use for debug cc_checkx
+                    print_indent('Unexpected result for ' + file_i, 1)
+                    print_indent(result, 1)
+
 
 def get_status(get_modified=False, get_untracked=False, get_checkedout_unmodified=False,
                item=None, whole_view=False):
@@ -306,10 +321,10 @@ def write_to_file(line_list, path):
 
 def set_cs(new_cs):
     if isinstance(new_cs, list):
-        write_to_file(new_cs, 'cs_temp')
-        new_cs = 'cs_temp'
+        write_to_file(new_cs, 'temp.cs')
+        new_cs = 'temp.cs'
     result = run_cmd_command('cleartool setcs ' +  new_cs)
-    if new_cs == 'cs_temp':
+    if new_cs == 'temp.cs':
         remove(new_cs)
     return result
 
@@ -319,14 +334,14 @@ def diff_cs(csfile_a, csfile_b, view=False, diff_files=False):
     cs_b = get_cs_files(csfile_b)
     if diff_files:
         if ('DIFFTOOL' in os.environ):
-            filename_a = csfile_a + '.cs'
-            filename_b = (csfile_b or 'CURRENT') + '.cs'
+            filename_a = csfile_a
+            filename_b = (csfile_b or 'CURRENT')
             created_a = False
             created_b = False
-            if not exists(filename_a):
+            if not exists_try(filename_a):
                 created_a = True
                 write_to_file(cs_a[1], filename_a)
-            if not exists(filename_b):
+            if not exists_try(filename_b):
                 created_b = True
                 write_to_file(cs_b[1], filename_b)
             run_cmd_command([os.environ['DIFFTOOL'], abspath(filename_a), abspath(filename_b)])
@@ -336,9 +351,9 @@ def diff_cs(csfile_a, csfile_b, view=False, diff_files=False):
                 remove(filename_b)
         else:
             print_indent('error: environment variable DIFFTOOL is not set. Set it to your preferred diff tool, for example: setenv DIFFTOOL meld', 0)
-        return None, None, None
+        return cs_a, cs_b, None, None, None
     else:
-        return diff_cs_versions(cs_a[0], cs_b[0])
+        return (cs_a, cs_b) + diff_cs_versions(cs_a[0], cs_b[0])
 
 
 def diff_cs_versions(cs_files_a, cs_files_b):
@@ -390,7 +405,7 @@ def find_save_cs_dir(blockname=None, user=False):
     current_cs = get_cs_text()
     set_cs(DEFAULT_CS)
     for cs_path in needed_paths:
-        if not exists(cs_path):
+        if not exists_try(cs_path):
             print_indent('Creating ' + cs_path, 1)
             os.mkdir(cs_path)
             cc_checkx('in', recursive=False, selected_item=cs_path, message='Create directory to store CS files.', identical=False)
@@ -408,3 +423,23 @@ def get_cs_path(block=None, cs_file_name=None):
         return None
     save_cs_file_name = (cs_file_name or get_working_view_name()) + '.cs'
     return join(save_cs_dir, save_cs_file_name)
+
+
+def guess_cs_file(block, view, cs_file):
+    guessed_csfile = None
+    if view and cs_file:
+        print_indent('Error: provide view or cs-file to diff against, not both.', 0)
+        return None
+    if view:
+        guessed_csfile = view
+    elif cs_file:
+        guessed_path = get_cs_path(block, cs_file)
+        if not block and exists_try(abspath(cs_file)):
+            guessed_csfile = abspath(cs_file)
+        elif guessed_path and exists_try(guessed_path):
+            guessed_csfile = guessed_path
+    else:
+        guessed_path = get_cs_path(block)
+        if guessed_path and exists_try(guessed_path):
+            guessed_csfile = guessed_path
+    return guessed_csfile

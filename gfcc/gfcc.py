@@ -3,7 +3,7 @@ import sys
 import argparse
 
 from   os      import getcwd, chdir, walk, remove
-from   os.path import abspath, relpath, isdir, basename, join, exists
+from   os.path import abspath, relpath, isdir, basename, join
 from   gfcc import utils
 
 
@@ -300,6 +300,22 @@ def handler_uncheckout(res):
 parser_uncheckout.set_defaults(func=handler_uncheckout)
 
 
+# Subparser for: gfcc edcs
+parser_edcs = subparsers.add_parser('edcs', aliases=['ed'], help='Edit current cs.')
+parser_edcs.add_argument(
+    'item',
+    nargs='?',
+    help='CS file to edit',
+)
+
+def handler_edcs(res):
+    item = getattr(res, 'item', None)
+
+    utils.run_cmd_command(['cleartool', 'edcs'], False, True)
+
+parser_edcs.set_defaults(func=handler_edcs)
+
+
 # Subparser for: gfcc diffcs
 parser_diffcs = subparsers.add_parser('diffcs', aliases=['dcs'], help='Diff the files selected by two Config-Spec files.')
 parser_diffcs.add_argument(
@@ -323,7 +339,7 @@ parser_diffcs.add_argument(
 parser_diffcs.add_argument(
     '-v', '--view',
     dest='view',
-    help='Diff against view instead of file.'
+    help='Diff against current CS in the provided view.'
 )
 parser_diffcs.add_argument(
     '-g', '--gen_rules',
@@ -333,7 +349,7 @@ parser_diffcs.add_argument(
     help='Generate cs rules so that you get the same versions as others.'
 )
 parser_diffcs.add_argument(
-    'csfile',
+    'cs-file',
     nargs='*',
     help='CS file to diff against current one, or two CS files to be diffed.',
 )
@@ -344,33 +360,18 @@ def handler_diffcs(res):
     block = getattr(res, 'block', None)
     view = getattr(res, 'view', None)
     gen_rules = getattr(res, 'gen_rules', None)
-    csfile = getattr(res, 'csfile', None)
+    cs_file = getattr(res, 'cs-file', None)
 
-    if view and csfile:
-        utils.print_indent('diffcs: error: provide view or csfile to diff against, not both.', 0)
-        return
-    csfile_a = None
-    if view:
-        csfile_a = view
-    elif csfile:
-        guessed_path = utils.get_cs_path(block, csfile[0])
-        if not block and exists(abspath(csfile[0])):
-            csfile_a = abspath(csfile[0])
-        elif guessed_path and exists(guessed_path):
-            csfile_a = guessed_path
-    else:
-        guessed_path = utils.get_cs_path(block)
-        if guessed_path and exists(guessed_path):
-            csfile_a = guessed_path
+    csfile_a = utils.guess_cs_file(block, view, cs_file[0] if cs_file else None)
     if not csfile_a:
-        utils.print_indent('diffcs: error: no cs files to compare.', 0)
+        utils.print_indent('Error: cannot find two cs files to compare. Try providing the --block or the filepaths.', 0)
         return
-    if len(csfile) < 2 or view:
+    if len(cs_file) < 2 or view:
         csfile_b = None
-    elif len(csfile) == 2:
-        csfile_b = abspath(csfile[1])
+    elif len(cs_file) == 2:
+        csfile_b = abspath(cs_file[1])
     else:
-        utils.print_indent('diffcs: error: max two files to diff.', 0)
+        utils.print_indent('Error: max two files to diff.', 0)
 
     utils.print_indent(
         'Comparing ' + \
@@ -380,7 +381,7 @@ def handler_diffcs(res):
     )
     chdir(abspath(directory))
 
-    a_not_b, b_not_a, diff_v = utils.diff_cs(csfile_a, csfile_b, bool(view), diff_files)
+    cs_a, cs_b, a_not_b, b_not_a, diff_v = utils.diff_cs(csfile_a, csfile_b, bool(view), diff_files)
 
     if not diff_files:
         if not any([a_not_b, b_not_a, diff_v]):
@@ -392,10 +393,10 @@ def handler_diffcs(res):
             else:
                 for item in utils.sort_paths(b_not_a):
                     if gen_rules:
-                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_b[item]['rule']) if cs_b[item]['rule']
+                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_b[0][item]['rule']) if cs_b[0][item]['rule']
                             else ('* ' + relpath(item) + ' has NO rule in ' + (csfile_b or 'CURRENT')), 2)
                     else:
-                        utils.print_indent(relpath(item) + '   (Rule ' + (cs_b[item]['rule'] or 'NONE') + ')', 2)
+                        utils.print_indent(relpath(item) + '   (Rule ' + (cs_b[0][item]['rule'] or 'NONE') + ')', 2)
 
             utils.print_indent('Files selected by ' + relpath(csfile_a) + ' and NOT by ' + (csfile_b or 'CURRENT') + ':', 1)
             if not a_not_b:
@@ -403,10 +404,10 @@ def handler_diffcs(res):
             else:
                 for item in utils.sort_paths(a_not_b):
                     if gen_rules:
-                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[item]['rule']) if cs_a[item]['rule']
+                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
                             else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
                     else:
-                        utils.print_indent(relpath(item) + '   (Rule ' + (cs_a[item]['rule'] or 'NONE') + ')', 2)
+                        utils.print_indent(relpath(item) + '   (Rule ' + (cs_a[0][item]['rule'] or 'NONE') + ')', 2)
 
             utils.print_indent('Files with different versions in ' + (csfile_b or 'CURRENT') + ' vs ' + relpath(csfile_a) + ':', 1)
             if not diff_v:
@@ -414,7 +415,7 @@ def handler_diffcs(res):
             else:
                 for item in utils.sort_paths(diff_v.keys()):
                     if gen_rules:
-                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[item]['rule']) if cs_a[item]['rule']
+                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
                             else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
                     else:
                         utils.print_indent(
@@ -479,7 +480,7 @@ def handler_savecs(res):
         return utils.print_indent(
             'Error: Description is mandatory for shared CS files. Add it with -m "Your description."', 1)
     current_cs = utils.get_cs_text()
-    if any([('/LATEST' in line) and not ('/cs...' in line or '/cs/...' in line) for line in current_cs]) and not force:
+    if any([('/LATEST' in line) and not (('/cs/...' in line) or line.strip().startswith('#')) for line in current_cs]) and not force:
         return utils.print_indent(
             'Error: Using LATEST in your CS is not allowed unless you --force it.', 1)
 
@@ -489,7 +490,7 @@ def handler_savecs(res):
         absolute_path = utils.get_cs_path(block, cs_file_name)
         if not absolute_path:
             return
-    if not exists(absolute_path):
+    if not utils.exists_try(absolute_path):
         open(absolute_path, 'a').close()
     elif force or current_cs != utils.get_cs_text(absolute_path):
         utils.cc_checkx('out', False, absolute_path)
@@ -507,13 +508,18 @@ parser_savecs.set_defaults(func=handler_savecs)
 
 
 # Subparser for: gfcc setcs
-parser_setcs = subparsers.add_parser('setcs', aliases=['scs'], help='Save your current cs state in cc.')
+parser_setcs = subparsers.add_parser('setcs', aliases=['stcs'], help='Save your current cs state in cc.')
 parser_setcs.add_argument(
     '-b', '--block',
     dest='block',
     help='Block name (if you want to load a block or user cs file and the path cannot be automatically identified).'
 )
-parser_savecs.add_argument(
+parser_setcs.add_argument(
+    '-v', '--view',
+    dest='view',
+    help='Copy the current CS in another view to this one.'
+)
+parser_setcs.add_argument(
     '-k', '--backup',
     dest='backup',
     action='store_true',
@@ -528,24 +534,21 @@ parser_setcs.add_argument(
 
 def handler_setcs(res):
     block = getattr(res, 'block', None)
+    view = getattr(res, 'view', None)
     backup = getattr(res, 'backup', None)
     cs_file = getattr(res, 'cs-file', None)
 
-    cs_to_apply = None
-    if cs_file:
-        if not block and exists(abspath(cs_file)):
-            cs_to_apply = abspath(cs_file)
-    if not cs_to_apply:
-        guessed_path = utils.get_cs_path(block, cs_file)
-        if guessed_path and exists(guessed_path):
-            cs_to_apply = guessed_path
+    cs_to_apply = utils.guess_cs_file(block, view, cs_file)
 
     if cs_to_apply:
+        cs_name = cs_to_apply
         if backup:
             utils.write_to_file(utils.get_cs_text(), 'current.cs.bak')
             utils.print_indent('Current CS backup saved in ./current.cs.bak', 0)
+        if view:
+            cs_to_apply = utils.get_cs_text(cs_to_apply, view)
         utils.set_cs(cs_to_apply)
-        utils.print_indent('Current CS set to: ' + cs_to_apply, 0)
+        utils.print_indent('Current CS set to: ' + cs_name, 0)
     else:
         utils.print_indent('Source CS file could not be identified with the provided parameters or found in your filesystem.', 0)
         return
