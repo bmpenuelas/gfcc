@@ -6,7 +6,7 @@ def readme():
 
 setup(
     name='gfcc',
-    version='0.3',
+    version='0.4',
     description='A layer of automation for ClearCase with a touch of git flavour',
     long_description=readme(),
     classifiers=[
