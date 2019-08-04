@@ -241,6 +241,7 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
                 mk_result = config['mk']['fn'](file_i, **mk_arguments)
                 if any([(config['mk']['succes_str'] in line.lower()) for line in mk_result[0]]):
                     print_indent(config['mk']['succes_print'] + file_i, 1)
+                    print_indent('element ' + file_i + ' ' + '/main/1', 1)
                 else:
                     print_indent(mk_result[0] + mk_result[1], 1)
             elif single_item:

@@ -316,6 +316,63 @@ def handler_edcs(res):
 parser_edcs.set_defaults(func=handler_edcs)
 
 
+# Subparser for: gfcc find
+parser_find = subparsers.add_parser('find', aliases=['f'], help='Quick access to useful filters.')
+parser_find.add_argument(
+    '-l', '--latest',
+    dest='latest',
+    action='store_true',
+    default=False,
+    help='Find files selected by rule /LATEST.'
+)
+parser_find.add_argument(
+    '-nl', '--not-latest',
+    dest='not-latest',
+    action='store_true',
+    default=False,
+    help='Find files for which a newer version exists.'
+)
+parser_find.add_argument(
+    '-v', '--view',
+    dest='view',
+    default=None,
+    help='Perform the search on another view.'
+)
+parser_find.add_argument(
+    '-d', '--directory',
+    dest='directory',
+    default='.',
+    help='Perform the search in the provided directory.'
+)
+parser_find.add_argument(
+    'item',
+    nargs='?',
+    help='Item.',
+)
+
+def handler_find(res):
+    item = getattr(res, 'item', None)
+    latest = getattr(res, 'latest', None)
+    not_latest = getattr(res, 'not-latest', None)
+    view = getattr(res, 'view', None)
+    directory = getattr(res, 'directory', None)
+
+    if directory:
+        chdir(directory)
+
+    if latest:
+        files_versions = utils.get_cs_files(view, view=bool(view))[0]
+        files_rule_latest = [
+            file_i for file_i in files_versions
+            if (not file_i == 'cs' and not file_i.endswith(('.cs', '/cs', '/cs/user')) and files_versions[file_i]['rule'].endswith('/LATEST'))]
+
+        utils.print_indent('Files selected by rule /LATEST' + ((' in view ' + view) if view else '') + ((' in ' + directory) if directory else '') + ' : ', 0)
+        utils.print_indent(files_rule_latest or 'None.', 1)
+
+
+parser_find.set_defaults(func=handler_find)
+
+
 # Subparser for: gfcc diffcs
 parser_diffcs = subparsers.add_parser('diffcs', aliases=['dcs'], help='Diff the files selected by two Config-Spec files.')
 parser_diffcs.add_argument(
@@ -375,8 +432,10 @@ def handler_diffcs(res):
 
     utils.print_indent(
         'Comparing ' + \
-        (('CS files: ' + csfile_a + ' vs ' +  (csfile_b or 'CURRENT')) if diff_files else \
-        ('files selected by both CS files in ' + (directory if directory != '.' else basename(abspath(directory))) + ':')),
+        ('files selected by ' if not diff_files else '') + \
+        'CS files ' + relpath(csfile_a) + ' vs ' +  (relpath(csfile_b) if csfile_b else 'CURRENT') + \
+        (' in ' + (directory if directory != '.' else basename(abspath(directory))) if not diff_files else '') + \
+        ':',
         0
     )
     chdir(abspath(directory))

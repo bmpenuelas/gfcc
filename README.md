@@ -153,6 +153,25 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 <br>
 <br>
 
+:pushpin: **`gfcc find`**
+
+| description | clearcase actions |
+| --- | --- |
+| Uncheckout in the ClearCase sense. | `cleartool unco` `-keep` or `-rm` per element, recursively if selected. |
+
+If no parameters are specified, *recursive* from *cwd* will be performed.
+
+`-l` `--latest` Find files selected by rule /LATEST.
+
+`-nl` `--not-latest` Find files for which a newer version exists.
+
+`-v` `--view` Perform the search on another view.
+
+`-d` `--directory` Perform the search in the provided directory.
+
+<br>
+<br>
+
 :pushpin: **`gfcc diffcs`**
 
 | description | clearcase actions |
