@@ -161,7 +161,7 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 
 If no parameters are specified, *recursive* from *cwd* will be performed.
 
-`-l` `--latest` Find files selected by rule /LATEST.
+`-l` `--latest` Find files selected by rule /LATEST (ignores *.cs* files).
 
 `-nl` `--not-latest` Find files for which a newer version exists.
 
@@ -182,7 +182,7 @@ If no parameters are provided, it will diff your current cs against your last sa
 
 `-f` `--files` Diff the actual CS files, instead of the list of files and versions selected by them.
 
-`-d` `--directory` Perform the file comparison in the provided directory, instead of the *current working directory*.
+`-d` `--directory` Perform the comparison in the provided directory (or directories), (defaults to the *current working directory*).
 
 `-b` `--block` Block name (to diff against a block configspec).
 
@@ -232,3 +232,16 @@ Configspec files location:
 `-k` `--backup` Save current CS in a backup file before applying the new CS.
 
 `[cs-file]` Name or path of the configspec to apply.
+
+<br>
+<br>
+
+:pushpin: **`gfcc difflabels`**
+
+| description | clearcase actions |
+| --- | --- |
+| Diff the files selected by two different labels. | TBD |
+
+`-d` `--directory` Perform the comparison in the provided directory (or directories), (defaults to *any directory*).
+
+`labels` Provide the two labels to diff against each other.

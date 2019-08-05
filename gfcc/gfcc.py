@@ -36,9 +36,9 @@ parser_status.add_argument(
     help='Show also files that are checked-out.'
 )
 parser_status.add_argument(
-    'item',
-    nargs='?',
-    help='Get status for a specific item.',
+    'items',
+    nargs='*',
+    help='Get status for a specific item(s).',
 )
 
 
@@ -46,24 +46,26 @@ def handler_status(res):
     untracked = getattr(res, 'untracked', None)
     whole_view = getattr(res, 'view', None)
     checked_out = getattr(res, 'checked-out', None)
-    item = getattr(res, 'item', None)
+    items = getattr(res, 'items', None) or [None]
 
     utils.print_indent(utils.run_cmd_command('cleartool pwv')[0].strip(), 0)
 
-    modified_files, untracked_files, checked_out_unmodified = utils.get_status(
-        get_modified=True, get_untracked=(untracked != 'no'), get_checkedout_unmodified=(checked_out),
-        item=item, whole_view=whole_view
-    )
-    utils.print_indent('Modified files:', 1)
-    utils.print_indent((utils.to_rel_path(modified_files) or ['None.']), 2)
+    for item in items:
+        utils.print_indent('Status in ' +  (relpath(item) if item else basename(abspath('.'))) + ':', 0)
+        modified_files, untracked_files, checked_out_unmodified = utils.get_status(
+            get_modified=True, get_untracked=(untracked != 'no'), get_checkedout_unmodified=(checked_out),
+            item=item, whole_view=whole_view
+        )
+        utils.print_indent('Modified files:', 1)
+        utils.print_indent((utils.to_rel_path(modified_files) or ['None.']), 2)
 
-    if untracked != 'no':
-        utils.print_indent('Untracked files:', 1)
-        utils.print_indent((utils.to_rel_path(untracked_files) or ['None.']), 2)
+        if untracked != 'no':
+            utils.print_indent('Untracked files:', 1)
+            utils.print_indent((utils.to_rel_path(untracked_files) or ['None.']), 2)
 
-    if checked_out:
-        utils.print_indent('Checked-out files unmodified:', 1)
-        utils.print_indent((utils.to_rel_path(checked_out_unmodified) or ['None.']), 2)
+        if checked_out:
+            utils.print_indent('Checked-out files unmodified:', 1)
+            utils.print_indent((utils.to_rel_path(checked_out_unmodified) or ['None.']), 2)
 
 parser_status.set_defaults(func=handler_status)
 
@@ -167,14 +169,25 @@ parser_clean.add_argument(
     default=False,
     help='Remove ALL untracked.'
 )
+parser_clean.add_argument(
+    'items',
+    nargs='*',
+    help='Clean one or several directories.',
+)
 
 def handler_clean(res):
     clean_all = getattr(res, 'clean_all', None)
-    _, untracked_files, _ = utils.get_status(get_untracked=True)
-    files_to_delete = untracked_files if clean_all else [f for f in untracked_files if f.endswith(utils.TEMPORARY_FILE_EXTENSIONS)]
-    utils.rm(files_to_delete, r=True)
-    for file_deleted in files_to_delete:
-        utils.print_indent('Removed: ' + file_deleted, 1)
+    items = getattr(res, 'items', None) or ['.']
+    items = [abspath(item) for item in items]
+
+    for item in items:
+        chdir(item)
+        _, untracked_files, _ = utils.get_status(get_untracked=True)
+        files_to_delete = untracked_files if clean_all else [f for f in untracked_files if f.endswith(utils.TEMPORARY_FILE_EXTENSIONS)]
+        utils.rm(files_to_delete, r=True)
+        for file_deleted in files_to_delete:
+            utils.print_indent('Removed: ' + file_deleted, 1)
+        utils.print_indent('Cleaned ' + item, 1)
 
 parser_clean.set_defaults(func=handler_clean)
 
@@ -309,8 +322,6 @@ parser_edcs.add_argument(
 )
 
 def handler_edcs(res):
-    item = getattr(res, 'item', None)
-
     utils.run_cmd_command(['cleartool', 'edcs'], False, True)
 
 parser_edcs.set_defaults(func=handler_edcs)
@@ -385,8 +396,9 @@ parser_diffcs.add_argument(
 parser_diffcs.add_argument(
     '-d', '--directory',
     dest='directory',
-    default='.',
-    help='Perform the file comparison in the provided directory.'
+    nargs='*',
+    default=['.'],
+    help='Perform the comparison in the provided directory (or directories).'
 )
 parser_diffcs.add_argument(
     '-b', '--block',
@@ -430,71 +442,95 @@ def handler_diffcs(res):
     else:
         utils.print_indent('Error: max two files to diff.', 0)
 
-    utils.print_indent(
-        'Comparing ' + \
-        ('files selected by ' if not diff_files else '') + \
-        'CS files ' + relpath(csfile_a) + ' vs ' +  (relpath(csfile_b) if csfile_b else 'CURRENT') + \
-        (' in ' + (directory if directory != '.' else basename(abspath(directory))) if not diff_files else '') + \
-        ':',
-        0
-    )
-    chdir(abspath(directory))
+    directory = [abspath(dir_i) for dir_i in directory]
+    for dir_i in directory:
+        utils.print_indent(
+            'Comparing ' + \
+            ('files selected by ' if not diff_files else '') + \
+            'CS files ' + relpath(csfile_a) + ' vs ' +  (relpath(csfile_b) if csfile_b else 'CURRENT') + \
+            (' ...' if diff_files else ' in ' + (relpath(dir_i) if dir_i != getcwd() else basename(abspath(dir_i))) + ' :' ),
+            0
+        )
 
-    cs_a, cs_b, a_not_b, b_not_a, diff_v = utils.diff_cs(csfile_a, csfile_b, bool(view), diff_files)
+        chdir(dir_i)
 
-    if not diff_files:
-        if not any([a_not_b, b_not_a, diff_v]):
-            utils.print_indent('Identical: Both CS files select the same files and versions.', 1)
-        else:
-            utils.print_indent('Files selected by ' + (csfile_b or 'CURRENT') + ' and NOT by ' + relpath(csfile_a)  + ':', 1)
-            if not b_not_a:
-                utils.print_indent('None.', 2)
+        cs_a, cs_b, a_not_b, b_not_a, diff_v = utils.diff_cs(csfile_a, csfile_b, bool(view), diff_files)
+
+        if not diff_files:
+            if not any([a_not_b, b_not_a, diff_v]):
+                utils.print_indent('Identical: Both CS files select the same files and versions.', 1)
             else:
-                for item in utils.sort_paths(b_not_a):
-                    if gen_rules:
-                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_b[0][item]['rule']) if cs_b[0][item]['rule']
-                            else ('* ' + relpath(item) + ' has NO rule in ' + (csfile_b or 'CURRENT')), 2)
-                    else:
-                        utils.print_indent(relpath(item) + '   (Rule ' + (cs_b[0][item]['rule'] or 'NONE') + ')', 2)
+                utils.print_indent('Files selected by ' + (csfile_b or 'CURRENT') + ' and NOT by ' + relpath(csfile_a)  + ':', 1)
+                if not b_not_a:
+                    utils.print_indent('None.', 2)
+                else:
+                    for item in utils.sort_paths(b_not_a):
+                        if gen_rules:
+                            utils.print_indent(('element ' + abspath(item) + ' ' + cs_b[0][item]['rule']) if cs_b[0][item]['rule']
+                                else ('* ' + relpath(item) + ' has NO rule in ' + (csfile_b or 'CURRENT')), 2)
+                        else:
+                            utils.print_indent(relpath(item) + '   (Rule ' + (cs_b[0][item]['rule'] or 'NONE') + ')', 2)
 
-            utils.print_indent('Files selected by ' + relpath(csfile_a) + ' and NOT by ' + (csfile_b or 'CURRENT') + ':', 1)
-            if not a_not_b:
-                utils.print_indent('None.', 2)
-            else:
-                for item in utils.sort_paths(a_not_b):
-                    if gen_rules:
-                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
-                            else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
-                    else:
-                        utils.print_indent(relpath(item) + '   (Rule ' + (cs_a[0][item]['rule'] or 'NONE') + ')', 2)
+                utils.print_indent('Files selected by ' + relpath(csfile_a) + ' and NOT by ' + (csfile_b or 'CURRENT') + ':', 1)
+                if not a_not_b:
+                    utils.print_indent('None.', 2)
+                else:
+                    for item in utils.sort_paths(a_not_b):
+                        if gen_rules:
+                            utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
+                                else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
+                        else:
+                            utils.print_indent(relpath(item) + '   (Rule ' + (cs_a[0][item]['rule'] or 'NONE') + ')', 2)
 
-            utils.print_indent('Files with different versions in ' + (csfile_b or 'CURRENT') + ' vs ' + relpath(csfile_a) + ':', 1)
-            if not diff_v:
-                utils.print_indent('None.', 2)
-            else:
-                for item in utils.sort_paths(diff_v.keys()):
-                    if gen_rules:
-                        utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
-                            else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
-                    else:
-                        utils.print_indent(
-                            relpath(item) \
-                            + '   ' + diff_v[item][1]['version'] + ' vs ' + diff_v[item][0]['version'] \
-                            + '   (Rule ' + (diff_v[item][1]['rule'] or 'NONE') \
-                            + ' vs ' + (diff_v[item][0]['rule'] or 'NONE') + ')',
-                            2
-                        )
+                utils.print_indent('Files with different versions in ' + (csfile_b or 'CURRENT') + ' vs ' + relpath(csfile_a) + ':', 1)
+                if not diff_v:
+                    utils.print_indent('None.', 2)
+                else:
+                    for item in utils.sort_paths(diff_v.keys()):
+                        if gen_rules:
+                            utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
+                                else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
+                        else:
+                            utils.print_indent(
+                                relpath(item) \
+                                + '   ' + diff_v[item][1]['version'] + ' vs ' + diff_v[item][0]['version'] \
+                                + '   (Rule ' + (diff_v[item][1]['rule'] or 'NONE') \
+                                + ' vs ' + (diff_v[item][0]['rule'] or 'NONE') + ')',
+                                2
+                            )
 
-            if csfile_b == None:
-                modified_files, _, _ = utils.get_status(
-                    get_modified=True, item=directory
-                )
-                if modified_files:
-                    utils.print_indent('\nWarning: The following changes are only in your view', 0)
-                    utils.print_indent('Modified files:', 1)
-                    utils.print_indent((modified_files or ['None.']), 2)
+                if csfile_b == None:
+                    modified_files, _, _ = utils.get_status(
+                        get_modified=True, item=dir_i
+                    )
+                    if modified_files:
+                        utils.print_indent('\nWarning: The following changes are only in your view', 0)
+                        utils.print_indent('Modified files:', 1)
+                        utils.print_indent((modified_files or ['None.']), 2)
 
 parser_diffcs.set_defaults(func=handler_diffcs)
+
+
+# Subparser for: gfcc difflabels
+parser_difflabels = subparsers.add_parser('difflabels', aliases=['dl'], help='Diff the files selected by two different labels.')
+parser_difflabels.add_argument(
+    '-d', '--directory',
+    dest='directory',
+    nargs='*',
+    default=['.'],
+    help='Perform the comparison in the provided directory (or directories).'
+)
+parser_difflabels.add_argument(
+    'labels',
+    nargs=2,
+    help='Two labels to diff against each other.',
+)
+
+def handler_difflabels(res):
+    directory = getattr(res, 'directory', None)
+    labels = getattr(res, 'labels', None)
+
+parser_difflabels.set_defaults(func=handler_difflabels)
 
 
 # Subparser for: gfcc savecs
