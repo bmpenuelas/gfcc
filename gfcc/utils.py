@@ -42,7 +42,7 @@ def exists_try(filepath):
 
 
 def rm(files, r=False):
-    if isinstance(files, list):
+    if isinstance(files, (list, tuple)):
         return [rm(file_i) for file_i in files]
     else:
         clearcase_cmd_rm = ['rm', '-' + ('r' if r and isdir(files) else '') + 'f', abspath(files)]
@@ -61,25 +61,22 @@ def get_date_string():
 
 
 def to_abs_path(rel_path):
-    if isinstance(rel_path, list):
+    if isinstance(rel_path, (list, tuple)):
         return [to_abs_path(element) for element in rel_path]
     else:
         return abspath(rel_path)
 
 def to_rel_path(abs_path, from_path=None):
-    if isinstance(abs_path, list):
+    if isinstance(abs_path, (list, tuple)):
         return [to_rel_path(element, from_path) for element in abs_path]
     else:
         return relpath(abs_path, from_path or getcwd())
 
 
-def search_regex(expression, text, groups):
-    search_result = re.search(expression, text)
-    result = {group_i: None for group_i in groups}
+def regex_match(expression, text):
+    search_result = re.match(expression, text)
     if search_result:
-        for group_i in groups:
-            result[group_i] = search_result.group(group_i)
-    return result
+        return search_result.groupdict()
 
 
 def list_checked_out(directory=None, absolute=False):
@@ -97,7 +94,7 @@ def list_checked_out(directory=None, absolute=False):
 
 def find_modifications(to_check, gui=False):
     ''' Take one or a list of abs or rel paths and return the differences reported by cleartool. '''
-    if isinstance(to_check, list):
+    if isinstance(to_check, (list, tuple)):
         return list(filter(lambda x: x, [find_modifications(file_i, gui) for file_i in to_check]))
     else:
         clearcase_cmd_find_modifications = ['cleartool', 'diff']  + (['-graphical'] if gui else []) + ['-predecessor', to_check]
@@ -145,16 +142,25 @@ def cc_xlsvtree(item):
     return run_cmd_command(clearcase_cmd_xlsvtree, False, True)
 
 
+def cc_get_selected(item):
+    if isinstance(item, (list, tuple)):
+        return [cc_get_selected(element) for element in item]
+    else:
+        clearcase_cmd_get_v_rule = ['cleartool', 'ls', item]
+        result = run_cmd_command(clearcase_cmd_get_v_rule, True)
+        return regex_match(r'^(?P<cc_path>.*?)\s', result[0][0])['cc_path']
+
+
 def cc_checkout(to_cc):
-    if isinstance(to_cc, list):
+    if isinstance(to_cc, (list, tuple)):
         return [cc_checkout(element) for element in to_cc]
     else:
-        clearcase_cmd_checkout = ['cleartool', 'co', '-unr', '-nc']
-        return run_cmd_command(clearcase_cmd_checkout + [to_cc], True)
+        clearcase_cmd_checkout = ['cleartool', 'co', '-unr', '-nc', '-version', to_cc]
+        return run_cmd_command(clearcase_cmd_checkout, True)
 
 
 def cc_checkin(to_cc, message, identical=False):
-    if isinstance(to_cc, list):
+    if isinstance(to_cc, (list, tuple)):
         return [cc_checkin(element, message, identical) for element in to_cc]
     else:
         clearcase_cmd_checkin = ['cleartool', 'ci', '-c', message, ('-identical' if identical else '')]
@@ -162,7 +168,7 @@ def cc_checkin(to_cc, message, identical=False):
 
 
 def cc_uncheckout(to_cc, keep):
-    if isinstance(to_cc, list):
+    if isinstance(to_cc, (list, tuple)):
         return [cc_uncheckout(element, keep) for element in to_cc]
     else:
         clearcase_cmd_uncheckout = ['cleartool', 'unco', '-keep' if keep else '-rm']
@@ -170,7 +176,7 @@ def cc_uncheckout(to_cc, keep):
 
 
 def cc_mkelem(to_cc, message):
-    if isinstance(to_cc, list):
+    if isinstance(to_cc, (list, tuple)):
         return [cc_mkelem(element, message) for element in to_cc]
     else:
         cc_checkout(dirname(abspath(to_cc)))
@@ -241,7 +247,8 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
                 mk_result = config['mk']['fn'](file_i, **mk_arguments)
                 if any([(config['mk']['succes_str'] in line.lower()) for line in mk_result[0]]):
                     print_indent(config['mk']['succes_print'] + file_i, 1)
-                    print_indent('element ' + file_i + ' ' + '/main/1', 1)
+                    print_indent('Add the following rule to your cs to select this version:', 2)
+                    print_indent('element ' + file_i + ' ' + '/main/1', 2)
                 else:
                     print_indent(mk_result[0] + mk_result[1], 1)
             elif single_item:
@@ -321,7 +328,7 @@ def write_to_file(line_list, path):
 
 
 def set_cs(new_cs):
-    if isinstance(new_cs, list):
+    if isinstance(new_cs, (list, tuple)):
         write_to_file(new_cs, 'temp.cs')
         new_cs = 'temp.cs'
     result = run_cmd_command('cleartool setcs ' +  new_cs)
@@ -387,7 +394,7 @@ def get_block_name_path(blockname=None):
     if not blockname:
         cwd = abspath(getcwd())
         if cwd.startswith(src_path):
-            blockname = search_regex(r'^(\/|\\)?(?P<blockname>\w+)(\/|\\)?', cwd[len(src_path):], ['blockname'])['blockname']
+            blockname = regex_match(r'^(\/|\\)?(?P<blockname>\w+)(\/|\\)?', cwd[len(src_path):])['blockname']
     if blockname:
         return blockname, join(src_path, blockname)
     else:

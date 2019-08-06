@@ -80,28 +80,28 @@ parser_diff.add_argument(
     help='Open differences in GUI (if any).'
 )
 parser_diff.add_argument(
-    'item',
-    nargs='?',
-    help='Find diffs on a specific item.',
+    'items',
+    nargs='*',
+    help='Find diffs on a specific item(s).',
 )
 
 def handler_diff(res):
-    selected_item = getattr(res, 'item', None)
+    items = getattr(res, 'items', None)
     graphical = getattr(res, 'graphical', None)
 
-
-    if graphical:
-        modified_files, _, _ = utils.get_status(get_modified=True, item=selected_item)
-        if modified_files:
-            utils.find_modifications(modified_files, gui=True)
+    for item in items:
+        if graphical:
+            modified_files, _, _ = utils.get_status(get_modified=True, item=item)
+            if modified_files:
+                utils.find_modifications(modified_files, gui=True)
+            else:
+                utils.print_indent('No differences.', 1)
         else:
-            utils.print_indent('No differences.', 1)
-    else:
-        checked_out_files = utils.list_checked_out()
-        modifications = utils.find_modifications([selected_item] if selected_item else checked_out_files)
-        utils.print_indent('Modifications:', 1)
-        for modification in (modifications or [utils.INDENTATION * 2 + 'None.']):
-            utils.print_indent(modification, 0)
+            checked_out_files = utils.list_checked_out()
+            modifications = utils.find_modifications([item] if item else checked_out_files)
+            utils.print_indent('Modifications:', 1)
+            for modification in (modifications or [utils.INDENTATION * 2 + 'None.']):
+                utils.print_indent(modification, 0)
 
 parser_diff.set_defaults(func=handler_diff)
 
@@ -135,9 +135,9 @@ parser_log.add_argument(
     help='Open history in visual version tree.'
 )
 parser_log.add_argument(
-    'item',
-    nargs='?',
-    help='You can provide a directory or file to get the history of that item alone.',
+    'items',
+    nargs='*',
+    help='You can provide one or more directory or file to get the history of that item(s) alone.',
 )
 
 def handler_log(res):
@@ -145,17 +145,16 @@ def handler_log(res):
     recursive = getattr(res, 'recursive', None)
     graphical = getattr(res, 'graphical', None)
     tree = getattr(res, 'tree', None)
-    item = getattr(res, 'item', None)
+    items = getattr(res, 'items', None) or ['.']
 
-    item = item or '.'
-
-    if tree:
-        utils.cc_xlsvtree(item)
-    else:
-        result = utils.cc_lshist(item, lines or 5, recursive, graphical)
-        if not graphical:
-            utils.print_indent('Change history of ' +  item, 0)
-            result = utils.print_indent(result, 1)
+    for item in items:
+        if tree:
+            utils.cc_xlsvtree(item)
+        else:
+            result = utils.cc_lshist(item, lines or 5, recursive, graphical)
+            if not graphical:
+                utils.print_indent('Change history of ' +  item, 0)
+                result = utils.print_indent(result, 1)
 
 parser_log.set_defaults(func=handler_log)
 
@@ -178,7 +177,7 @@ parser_clean.add_argument(
 def handler_clean(res):
     clean_all = getattr(res, 'clean_all', None)
     items = getattr(res, 'items', None) or ['.']
-    items = [abspath(item) for item in items]
+    items = [abspath(item) for item in items if isdir(item)]
 
     for item in items:
         chdir(item)
@@ -187,7 +186,7 @@ def handler_clean(res):
         utils.rm(files_to_delete, r=True)
         for file_deleted in files_to_delete:
             utils.print_indent('Removed: ' + file_deleted, 1)
-        utils.print_indent('Cleaned ' + item, 1)
+        utils.print_indent('Directory ' + item + ' clean.', 1)
 
 parser_clean.set_defaults(func=handler_clean)
 
@@ -226,6 +225,8 @@ def handler_ccheckout(res):
     if edit and ('EDITOR' in os.environ) and not isdir(selected_item):
         utils.print_indent('opening in ' + os.environ['EDITOR'] + ' ...', 2)
         utils.run_cmd_command([os.environ['EDITOR'], selected_item], background=True)
+    elif not ('EDITOR' in os.environ):
+        utils.print_indent('Error opening file: EDITOR environment variable is not set. You can set it like: setenv EDITOR gedit', 2)
 
 parser_ccheckout.set_defaults(func=handler_ccheckout)
 
@@ -433,7 +434,7 @@ def handler_diffcs(res):
 
     csfile_a = utils.guess_cs_file(block, view, cs_file[0] if cs_file else None)
     if not csfile_a:
-        utils.print_indent('Error: cannot find two cs files to compare. Try providing the --block or the filepaths.', 0)
+        utils.print_indent('Error: cannot find the cs files to compare. Try providing the --block or the filepaths.', 0)
         return
     if len(cs_file) < 2 or view:
         csfile_b = None
@@ -504,7 +505,7 @@ def handler_diffcs(res):
                         get_modified=True, item=dir_i
                     )
                     if modified_files:
-                        utils.print_indent('\nWarning: The following changes are only in your view', 0)
+                        utils.print_indent('\nWarning: The following changes are local, only visible in your view.', 0)
                         utils.print_indent('Modified files:', 1)
                         utils.print_indent((modified_files or ['None.']), 2)
 

@@ -44,7 +44,7 @@ Available options:
 
 `-co` `--checked-out` Show also files that are checked-out but don't have modifications.
 
-`[item]` You can provide a directory or file to get the status of that item alone.
+`[item(s)]` You can provide one (or more) directory or file to get the status of that item(s) alone.
 
 <br>
 <br>
@@ -57,7 +57,7 @@ Available options:
 
 `-g` `--graphical` Open differences in GUI (if any).
 
-`[item]` You can provide a directory or file to get differences on that item alone.
+`[item(s)]` You can provide a directory or file to get differences on that item (s) alone.
 
 <br>
 <br>
@@ -76,7 +76,7 @@ Available options:
 
 `-t` `--tree` Open history in visual tree.
 
-`[item]` You can provide a directory or file to get the history of that item alone.
+`[item(s)]` You can provide one or more directory or file to get the history of that item(s) alone.
 
 <br>
 <br>
@@ -90,6 +90,8 @@ Available options:
 Clean the *current working directory* (recursively). By default it will only remove files ending with *~*, *.keep* or *.contrib*.
 
 `-a` `--clean_all` Remove ALL untracked.
+
+`[item(s)]` Clean the provided directory or directories, (defaults to the *current working directory*).
 
 <br>
 <br>
@@ -182,7 +184,7 @@ If no parameters are provided, it will diff your current cs against your last sa
 
 `-f` `--files` Diff the actual CS files, instead of the list of files and versions selected by them.
 
-`-d` `--directory` Perform the comparison in the provided directory (or directories), (defaults to the *current working directory*).
+`-d` `--directory` Perform the comparison in the provided directory or directories, (defaults to the *current working directory*).
 
 `-b` `--block` Block name (to diff against a block configspec).
 
@@ -242,6 +244,6 @@ Configspec files location:
 | --- | --- |
 | Diff the files selected by two different labels. | TBD |
 
-`-d` `--directory` Perform the comparison in the provided directory (or directories), (defaults to *any directory*).
+`-d` `--directory` Perform the comparison in the provided directory or directories, (defaults to *any directory*).
 
 `labels` Provide the two labels to diff against each other.
