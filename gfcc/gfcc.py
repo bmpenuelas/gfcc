@@ -191,29 +191,29 @@ def handler_clean(res):
 parser_clean.set_defaults(func=handler_clean)
 
 
-# Subparser for: gfcc ccheckout
-parser_ccheckout = subparsers.add_parser('ccheckout', aliases=['co'], help='Checkout file/dir/recursively in the ClearCase sense.')
-parser_ccheckout.add_argument(
+# Subparser for: gfcc checkout
+parser_checkout = subparsers.add_parser('checkout', aliases=['co'], help='Checkout file/dir/recursively in the ClearCase sense.')
+parser_checkout.add_argument(
     '-r', '--recursive',
     dest='recursive',
     action='store_true',
     default=False,
     help='Apply to all subdirectories and files recursively.'
 )
-parser_ccheckout.add_argument(
+parser_checkout.add_argument(
     '-e', '--edit',
     dest='edit',
     action='store_true',
     default=False,
     help='Open checked-out file in the editor defined by $EDITOR'
 )
-parser_ccheckout.add_argument(
+parser_checkout.add_argument(
     'item',
     nargs='?',
     help='File or dir to check-out.',
 )
 
-def handler_ccheckout(res):
+def handler_checkout(res):
     recursive = getattr(res, 'recursive', None)
     edit = getattr(res, 'edit', None)
     selected_item = getattr(res, 'item', None)
@@ -228,45 +228,45 @@ def handler_ccheckout(res):
     elif not ('EDITOR' in os.environ):
         utils.print_indent('Error opening file: EDITOR environment variable is not set. You can set it like: setenv EDITOR gedit', 2)
 
-parser_ccheckout.set_defaults(func=handler_ccheckout)
+parser_checkout.set_defaults(func=handler_checkout)
 
 
-# Subparser for: gfcc ccheckin
-parser_ccheckin = subparsers.add_parser('ccheckin', aliases=['ci'], help='Checkin file/dir/recursively in the ClearCase sense.')
-parser_ccheckin.add_argument(
+# Subparser for: gfcc checkin
+parser_checkin = subparsers.add_parser('checkin', aliases=['ci'], help='Checkin file/dir/recursively in the ClearCase sense.')
+parser_checkin.add_argument(
     '-m', '--message',
     dest='message',
     required=True,
     help='Comment or description of the checkin (mandatory).'
 )
-parser_ccheckin.add_argument(
+parser_checkin.add_argument(
     '-r', '--recursive',
     dest='recursive',
     action='store_true',
     default=False,
     help='Apply to all subdirectories and files recursively.'
 )
-parser_ccheckin.add_argument(
+parser_checkin.add_argument(
     '-u', '--untracked',
     dest='untracked',
     action='store_true',
     default=False,
     help=''
 )
-parser_ccheckin.add_argument(
+parser_checkin.add_argument(
     '-i', '--identical',
     dest='identical',
     action='store_true',
     default=False,
     help='Checkin even if files are identical.'
 )
-parser_ccheckin.add_argument(
+parser_checkin.add_argument(
     'item',
     nargs='?',
     help='File or dir to check-in.',
 )
 
-def handler_ccheckin(res):
+def handler_checkin(res):
     message = getattr(res, 'message', None)
     recursive = getattr(res, 'recursive', None)
     untracked = getattr(res, 'untracked', None)
@@ -277,7 +277,7 @@ def handler_ccheckin(res):
 
     utils.cc_checkx('in', recursive, selected_item, untracked, message=message, identical=identical)
 
-parser_ccheckin.set_defaults(func=handler_ccheckin)
+parser_checkin.set_defaults(func=handler_checkin)
 
 
 # Subparser for: gfcc uncheckout
@@ -500,14 +500,14 @@ def handler_diffcs(res):
                                 2
                             )
 
-                if csfile_b == None:
-                    modified_files, _, _ = utils.get_status(
-                        get_modified=True, item=dir_i
-                    )
-                    if modified_files:
-                        utils.print_indent('\nWarning: The following changes are local, only visible in your view.', 0)
-                        utils.print_indent('Modified files:', 1)
-                        utils.print_indent((modified_files or ['None.']), 2)
+            if csfile_b == None:
+                modified_files, _, _ = utils.get_status(
+                    get_modified=True, item=dir_i
+                )
+                if modified_files:
+                    utils.print_indent('Warning: The following changes are local, only visible in your view.', 1)
+                    utils.print_indent('Modified files:', 2)
+                    utils.print_indent((modified_files or ['None.']), 3)
 
 parser_diffcs.set_defaults(func=handler_diffcs)
 

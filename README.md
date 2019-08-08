@@ -100,30 +100,30 @@ Clean the *current working directory* (recursively). By default it will only rem
 These do not have any git equivalent because they are exclusive to the ClearCase philosophy, they automate repetitive CC tasks or provide additional automated checks:
 
 
-:pushpin: **`gfcc ccheckout`**
+:pushpin: **`gfcc checkout`**
 
 | description | clearcase actions |
 | --- | --- |
-| Checkout in the ClearCase sense. | `cleartool co -unr -nc` per element, recursively if selected. |
+| Checkout in the ClearCase sense. | `cleartool co -unr -nc -version` per element, recursively if selected. |
 
-If no parameters are specified, *recursive* from *cwd* will be performed.
+If no parameters are specified, *recursive* from *cwd* will be performed. It will checkout the version that is selected by your configspec, or the version that you provide with *@@/branch/version*.
 
 `-r` `--recursive` If a directory is provided (defaults to *cwd*), apply to all files and subdirectories recursively.
 
-`-e` `--edit` Open checked-out file in the editor defined by `$EDITOR` environment variable.
+`-e` `--edit` Open checked-out file in the editor defined by the `$EDITOR` environment variable.
 
-`[item]` File/dir to ccheckout.
+`[item]` File/dir to checkout.
 
 <br>
 <br>
 
-:pushpin: **`gfcc ccheckin`**
+:pushpin: **`gfcc checkin`**
 
 | description | clearcase actions |
 | --- | --- |
 | Checkin in the ClearCase sense. If the file does not exist in ClearCase it will checkout the directory that contains it, create the element, check it in and check in the directory. | `cleartool ci -c` per element, recursively if selected. If the file is not in ClearCase yet, `cleartool mkelem` and checkout/checkin for the directory that contains it too. |
 
-If no parameters are specified, *recursive* from *cwd* will be performed.
+If no parameters are specified, *recursive* from *cwd* will be performed. If the file does not exist in clearcase yet, the element will automatically be created and checked-in.
 
 `-m` `--message` Comment or description of the checkin *(made mandatory)*.
 
@@ -133,7 +133,7 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 
 `-i` `--identical` Checkin even if files are identical.
 
-`[item]` File/dir to ccheckin.
+`[item]` File/dir to checkin.
 
 <br>
 <br>
@@ -159,17 +159,28 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 
 | description | clearcase actions |
 | --- | --- |
-| Uncheckout in the ClearCase sense. | `cleartool unco` `-keep` or `-rm` per element, recursively if selected. |
-
-If no parameters are specified, *recursive* from *cwd* will be performed.
+| Show lists of items of interest. | Combine and filter several `cleartool find` and `cleartool ls` to find the desired sets of files. |
 
 `-l` `--latest` Find files selected by rule /LATEST (ignores *.cs* files).
 
 `-nl` `--not-latest` Find files for which a newer version exists.
 
-`-v` `--view` Perform the search on another view.
+`-v` `--view` Perform the search based on the current cs of another view.
 
 `-d` `--directory` Perform the search in the provided directory.
+
+<br>
+<br>
+
+:pushpin: **`gfcc difflabels`**
+
+| description | clearcase actions |
+| --- | --- |
+| Diff the files selected by two different labels. | Apply find for both labels and compare the results. |
+
+`-d` `--directory` Show diffs only in the provided directory or directories, (defaults to *any directory*).
+
+`labels` Provide the two labels to diff against each other.
 
 <br>
 <br>
@@ -234,16 +245,3 @@ Configspec files location:
 `-k` `--backup` Save current CS in a backup file before applying the new CS.
 
 `[cs-file]` Name or path of the configspec to apply.
-
-<br>
-<br>
-
-:pushpin: **`gfcc difflabels`**
-
-| description | clearcase actions |
-| --- | --- |
-| Diff the files selected by two different labels. | TBD |
-
-`-d` `--directory` Perform the comparison in the provided directory or directories, (defaults to *any directory*).
-
-`labels` Provide the two labels to diff against each other.
