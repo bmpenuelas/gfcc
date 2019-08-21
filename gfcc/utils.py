@@ -116,13 +116,16 @@ def filename_from_diff(modification):
 
 def list_untracked(directory):
     ''' Works with relative paths by default due to the cleartool command. '''
-    clearcase_cmd_find_untracked = ['cleartool', 'ls', '-rec', '-view_only']
-    output = run_cmd_command(clearcase_cmd_find_untracked, True)[0]
+    directory = directory or '.'
+    clearcase_cmd_find_untracked = ['cleartool', 'ls', '-rec', '-view_only', directory]
+    result = run_cmd_command(clearcase_cmd_find_untracked, True)
+    if isdir(directory) and not (any(result[0]) or any(result[1])):
+        return [directory]
     if directory:
         directory = None if abspath(directory) == getcwd() else relpath(abspath(directory), getcwd())
     return list(filter(
         lambda x: x and ('Rule' not in x) and (not directory or x.startswith(directory) or x.startswith('./' + directory)),
-        output
+        result[0]
     ))
 
 
@@ -151,38 +154,60 @@ def cc_get_selected(item):
         return regex_match(r'^(?P<cc_path>.*?)\s', result[0][0])['cc_path']
 
 
-def cc_checkout(to_cc):
+def cc_checkout(to_cc, verbose_indent=1):
     if isinstance(to_cc, (list, tuple)):
-        return [cc_checkout(element) for element in to_cc]
+        return [cc_checkout(element, verbose_indent) for element in to_cc]
     else:
         clearcase_cmd_checkout = ['cleartool', 'co', '-unr', '-nc', '-version', to_cc]
-        return run_cmd_command(clearcase_cmd_checkout, True)
+        result = run_cmd_command(clearcase_cmd_checkout, True)
+        if verbose_indent:
+            print_indent('Checked out: ' + to_cc, verbose_indent)
+        return result
 
 
-def cc_checkin(to_cc, message, identical=False):
+def cc_checkin(to_cc, message, identical=False, verbose_indent=1):
     if isinstance(to_cc, (list, tuple)):
-        return [cc_checkin(element, message, identical) for element in to_cc]
+        return [cc_checkin(element, message, identical, verbose_indent) for element in to_cc]
     else:
-        clearcase_cmd_checkin = ['cleartool', 'ci', '-c', message, ('-identical' if identical else '')]
-        return run_cmd_command(clearcase_cmd_checkin + [to_cc], True)
+        clearcase_cmd_checkin = ['cleartool', 'ci', '-c', message] + (['-identical'] if identical else []) + [to_cc]
+        result = run_cmd_command(clearcase_cmd_checkin, True)
+        if verbose_indent:
+            search_version = re.search(r'^.*?version "(?P<version>.*?)"', result[0][0])
+            if search_version and search_version.group('version'):
+                print_indent('Checked in: ' + to_cc, verbose_indent)
+                print_indent('Add the following rule to your cs to select this version:', verbose_indent + 1)
+                print_indent('element ' + to_cc + ' ' + search_version.group('version'), verbose_indent + 1)
+            else:
+                print_indent('Error checking-in: ' + to_cc, verbose_indent)
+        return result
 
 
-def cc_uncheckout(to_cc, keep):
+def cc_uncheckout(to_cc, keep, verbose_indent=1):
     if isinstance(to_cc, (list, tuple)):
-        return [cc_uncheckout(element, keep) for element in to_cc]
+        return [cc_uncheckout(element, keep, verbose_indent) for element in to_cc]
     else:
+        if verbose_indent:
+            print_indent('Uncheckout: ' + to_cc, verbose_indent)
         clearcase_cmd_uncheckout = ['cleartool', 'unco', '-keep' if keep else '-rm']
-        return run_cmd_command(clearcase_cmd_uncheckout + [to_cc], True)
+        result = run_cmd_command(clearcase_cmd_uncheckout + [to_cc], True)
+        return result
 
 
-def cc_mkelem(to_cc, message):
+def cc_mkelem(to_cc, message, verbose_indent=1):
     if isinstance(to_cc, (list, tuple)):
         return [cc_mkelem(element, message) for element in to_cc]
     else:
         cc_checkout(dirname(abspath(to_cc)))
         clearcase_cmd_mkelem = ['cleartool', 'mkelem', '-c', message, '-ci', ('-mkpath' if isdir(to_cc) else ''), to_cc]
         mk_result = run_cmd_command(clearcase_cmd_mkelem, True)
-        cc_checkin(dirname(abspath(to_cc)), 'Added file ' + to_cc)
+        if verbose_indent:
+            print_indent('Create and Checkin: ' + to_cc, verbose_indent)
+            search_version = re.search(r'^.*?version "(?P<version>.*?)"', mk_result[0][0])
+            if search_version and search_version.group('version'):
+                print_indent('Add the following rule to your cs to select this version:', verbose_indent + 1)
+                print_indent('element ' + to_cc + ' ' + search_version.group('version'), verbose_indent + 1)
+            print_indent('Checking-in updated containing directory', verbose_indent)
+        cc_checkin(dirname(abspath(to_cc)), 'Added file ' + to_cc, verbose_indent=verbose_indent)
         return mk_result
 
 
@@ -190,25 +215,21 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
     config = {
         'out': {
             'succes_str': 'checked out',
-            'succes_print': 'Checked out: ',
             'fn': cc_checkout,
             'parameters': []
         },
         'in': {
             'succes_str': 'checked in',
-            'succes_print': 'Checked in: ',
             'fn': cc_checkin,
             'parameters': ['message', 'identical']
         },
         'un': {
             'succes_str': 'checkout cancelled',
-            'succes_print': 'Uncheckedout: ',
             'fn': cc_uncheckout,
             'parameters': ['keep']
         },
         'mk': {
             'succes_str': 'created element',
-            'succes_print': 'Created and Checked in: ',
             'fn': cc_mkelem,
             'parameters': ['message']
         },
@@ -229,26 +250,21 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
 
     modified_files, untracked_files, _ = get_status(get_modified=True, get_untracked=True,item=selected_item)
     untracked_filtered = [f for f in untracked_files if not f.endswith(TEMPORARY_FILE_EXTENSIONS)]
+
+    success = {file_i:{select: False} for file_i in file_list}
     for file_i in file_list:
         if (select == 'in' and (file_i in modified_files + (untracked_filtered if (untracked or single_item) else []) or arguments['identical'])) \
         or (select != 'in'):
             result = config[select]['fn'](file_i, **arguments)
             if any([(config[select]['succes_str'] in line.lower()) for line in result[0]]):
-                print_indent(config[select]['succes_print'] + file_i, 1)
-                if select in ('in', 'mk'):
-                    search_version = re.search(r'^.*?version "(?P<version>.*?)"', result[0][0])
-                    if search_version and search_version.group('version'):
-                        print_indent('Add the following rule to your cs to select this version:', 2)
-                        print_indent('element ' + file_i + ' ' + search_version.group('version'), 2)
+                success[file_i] = {select: True}
             elif any([(config['reserved_str'] in line.lower()) for line in result[1]]):
-                print_indent('ERROR File is reserved: ' + file_i, 1)
+                print_indent('Error File is reserved: ' + file_i, 1)
             elif any([(config['not_in_cc_str'] in line.lower()) for line in result[1]]) and select == 'in':
                 mk_arguments = {name: kwargs[name] for name in config['mk']['parameters']}
                 mk_result = config['mk']['fn'](file_i, **mk_arguments)
                 if any([(config['mk']['succes_str'] in line.lower()) for line in mk_result[0]]):
-                    print_indent(config['mk']['succes_print'] + file_i, 1)
-                    print_indent('Add the following rule to your cs to select this version:', 2)
-                    print_indent('element ' + file_i + ' ' + '/main/1', 2)
+                    success[file_i] = {'mk': True}
                 else:
                     print_indent(mk_result[0] + mk_result[1], 1)
             elif single_item:
@@ -261,7 +277,7 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
 
 def get_status(get_modified=False, get_untracked=False, get_checkedout_unmodified=False,
                item=None, whole_view=False):
-    directory = item if item else (None if whole_view else getcwd())
+    directory = item if (item and isdir(item)) else (None if whole_view else getcwd())
     checked_out_files = list_checked_out(directory)
     modifications = find_modifications(checked_out_files)
 
@@ -358,7 +374,7 @@ def diff_cs(csfile_a, csfile_b, view=False, diff_files=False):
             if created_b:
                 remove(filename_b)
         else:
-            print_indent('error: environment variable DIFFTOOL is not set. Set it to your preferred diff tool, for example: setenv DIFFTOOL meld', 0)
+            print_indent('Error: environment variable DIFFTOOL is not set. Set it to your preferred diff tool, for example: setenv DIFFTOOL meld', 0)
         return cs_a, cs_b, None, None, None
     else:
         return (cs_a, cs_b) + diff_cs_versions(cs_a[0], cs_b[0])
@@ -401,24 +417,30 @@ def get_block_name_path(blockname=None):
         return None, None
 
 
-def find_save_cs_dir(blockname=None, user=False):
+def find_save_cs_dir(blockname=None, user=False, code_review=False):
     block_path = get_block_name_path(blockname)[1]
     if not block_path:
         print_indent(
             'Unable to find block name automatically. Try running from inside the block file-tree or provide --block or --absolute-path.', 0)
         return None
+
     needed_paths = [join(block_path, 'cs')]
     if user:
         needed_paths.append(join(needed_paths[0], 'user'))
+    if code_review:
+        needed_paths.append(join(needed_paths[0], 'code_review'))
     current_cs = get_cs_text()
     set_cs(DEFAULT_CS)
     for cs_path in needed_paths:
         if not exists_try(cs_path):
             print_indent('Creating ' + cs_path, 1)
             os.mkdir(cs_path)
-            cc_checkx('in', recursive=False, selected_item=cs_path, message='Create directory to store CS files.', identical=False)
+            cc_checkx('in', recursive=False, selected_item=cs_path, message='Create directory to store CS files.', identical=False, untracked=True)
     set_cs(current_cs)
-    if user:
+
+    if code_review:
+        return needed_paths[-1]
+    elif user:
         return needed_paths[1]
     else:
         return needed_paths[0]

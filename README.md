@@ -3,7 +3,7 @@
 
 *gfcc* provides a layer of automation on top of ClearCase. The goal is twofold: speed-up working with cc, and provide additional checks for a more robust workflow.
 
-Some companies keep (typically older) projects in ClearCase, this project should also make working with them a bit more efficient for git users. The two are fundamentally different and therefore technically they won't be able to behave exactly the same way, so feel free to use the ones that are useful for you and tweak, request or contribute other commands.
+Some companies keep projects in **ClearCase** while most people currently prefer **git**, *gfcc* should also make working with them a bit more efficient for git users through emulation of some of the most-used git commands.
 
 <br>
 <br>
@@ -112,7 +112,7 @@ If no parameters are specified, *recursive* from *cwd* will be performed. It wil
 
 `-e` `--edit` Open checked-out file in the editor defined by the `$EDITOR` environment variable.
 
-`[item]` File/dir to checkout.
+`[item(s)]` File(s)/dir(s) to checkout.
 
 <br>
 <br>
@@ -133,7 +133,7 @@ If no parameters are specified, *recursive* from *cwd* will be performed. If the
 
 `-i` `--identical` Checkin even if files are identical.
 
-`[item]` File/dir to checkin.
+`[item(s)]` File(s)/dir(s) to checkin.
 
 <br>
 <br>
@@ -150,7 +150,7 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 
 `-k` `--keep` Keep private copy *(defaults to False)*.
 
-`[item]` File/dir to uncheckout.
+`[item(s)]` File(s)/dir(s) to uncheckout.
 
 <br>
 <br>
@@ -245,3 +245,36 @@ Configspec files location:
 `-k` `--backup` Save current CS in a backup file before applying the new CS.
 
 `[cs-file]` Name or path of the configspec to apply.
+
+<br>
+<br>
+
+:pushpin: **`gfcc codereview`**
+
+| description | clearcase actions |
+| --- | --- |
+| Create, share and review sets of code changes. | Save CS files with "old" and "new" status. When shared, open diffs for the chosen files. |
+
+`-c` `--create` Set this to **create** a new code review. The *default* behaviour is to **review** the provided one.
+
+`-b` `--block` Specify block (needed if it can not be automatically identified because you are not working inside the block file-tree, or want to take the cs from a different block). Source path will be *src/`blockname`/cs* .
+
+`-o` `--old_cs` CS file with the old, original, status.
+
+`-n` `--new_cs` CS file with the new status.
+
+`[name]` Name for/of this code review.
+
+<br>
+
+Most used combinations:
+
+`gfcc codereview [name]` Will start the review of *name*.
+
+<br>
+
+`gfcc codereview --create` Creates a code review where the last version of your user cs is the *new* state, and the one previous to that is the *old* state.
+
+`gfcc codereview --create [shared_cs_name]` If you provide the name of a shared CS file, the last version of your user cs is the *new* state, and the latest version of *shared_cs_name* is the *old* state.
+
+`gfcc codereview --create --old_cs <old_cs_file_path> --new_cs <new_cs_file_path> [name]` Create a code review explicitly providing the path to two cs files.

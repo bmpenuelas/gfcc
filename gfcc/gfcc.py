@@ -208,25 +208,27 @@ parser_checkout.add_argument(
     help='Open checked-out file in the editor defined by $EDITOR'
 )
 parser_checkout.add_argument(
-    'item',
-    nargs='?',
-    help='File or dir to check-out.',
+    'items',
+    nargs='*',
+    help='File(s) or dir(s) to check-out.',
 )
 
 def handler_checkout(res):
     recursive = getattr(res, 'recursive', None)
     edit = getattr(res, 'edit', None)
-    selected_item = getattr(res, 'item', None)
-    recursive = recursive if selected_item else True
-    selected_item = abspath(selected_item or getcwd())
+    items = getattr(res, 'items', None)
+    recursive = recursive if items else True
+    items = items or [getcwd()]
 
-    utils.cc_checkx('out', recursive, selected_item)
+    for item in items:
+        item = abspath(item)
+        utils.cc_checkx('out', recursive, item)
 
-    if edit and ('EDITOR' in os.environ) and not isdir(selected_item):
-        utils.print_indent('opening in ' + os.environ['EDITOR'] + ' ...', 2)
-        utils.run_cmd_command([os.environ['EDITOR'], selected_item], background=True)
-    elif not ('EDITOR' in os.environ):
-        utils.print_indent('Error opening file: EDITOR environment variable is not set. You can set it like: setenv EDITOR gedit', 2)
+        if edit and ('EDITOR' in os.environ) and not isdir(item):
+            utils.print_indent('opening in ' + os.environ['EDITOR'] + ' ...', 2)
+            utils.run_cmd_command([os.environ['EDITOR'], item], background=True)
+        elif not ('EDITOR' in os.environ):
+            utils.print_indent('Error opening file: EDITOR environment variable is not set. You can set it like: setenv EDITOR gedit', 2)
 
 parser_checkout.set_defaults(func=handler_checkout)
 
@@ -261,9 +263,9 @@ parser_checkin.add_argument(
     help='Checkin even if files are identical.'
 )
 parser_checkin.add_argument(
-    'item',
-    nargs='?',
-    help='File or dir to check-in.',
+    'items',
+    nargs='*',
+    help='File(s) or dir(s) to check-in.',
 )
 
 def handler_checkin(res):
@@ -271,11 +273,13 @@ def handler_checkin(res):
     recursive = getattr(res, 'recursive', None)
     untracked = getattr(res, 'untracked', None)
     identical = getattr(res, 'identical', None)
-    selected_item = getattr(res, 'item', None)
-    recursive = recursive if selected_item else True
-    selected_item = abspath(selected_item or getcwd())
+    items = getattr(res, 'items', None)
+    recursive = recursive if items else True
+    items = items or [getcwd()]
 
-    utils.cc_checkx('in', recursive, selected_item, untracked, message=message, identical=identical)
+    for item in items:
+        item = abspath(item)
+        utils.cc_checkx('in', recursive, item, untracked, message=message, identical=identical)
 
 parser_checkin.set_defaults(func=handler_checkin)
 
@@ -297,19 +301,21 @@ parser_uncheckout.add_argument(
     help='Keep private copy.'
 )
 parser_uncheckout.add_argument(
-    'item',
-    nargs='?',
-    help='File/dir to uncheckout.',
+    'items',
+    nargs='*',
+    help='File(s)/dir(s) to uncheckout.',
 )
 
 def handler_uncheckout(res):
     recursive = getattr(res, 'recursive', None)
     keep = getattr(res, 'keep', None)
-    selected_item = getattr(res, 'item', None)
-    recursive = recursive if selected_item else True
-    selected_item = abspath(selected_item or getcwd())
+    items = getattr(res, 'items', None)
+    recursive = recursive if items else True
+    items = items or [getcwd()]
 
-    utils.cc_checkx('un', recursive, selected_item, keep=keep)
+    for item in items:
+        item = abspath(item)
+        utils.cc_checkx('un', recursive, item, keep=keep)
 
 parser_uncheckout.set_defaults(func=handler_uncheckout)
 
@@ -650,6 +656,51 @@ def handler_setcs(res):
         return
 
 parser_setcs.set_defaults(func=handler_setcs)
+
+
+# Subparser for: gfcc codereview
+parser_codereview = subparsers.add_parser('codereview', aliases=['cr'], help='Create, share and review sets of code changes.')
+parser_codereview.add_argument(
+    '-c', '--create',
+    dest='create',
+    help='Block name (if you want to load a block or user cs file and the path cannot be automatically identified).'
+)
+parser_codereview.add_argument(
+    '-b', '--block',
+    dest='block',
+    help='Block name (if you want to load a block or user cs file and the path cannot be automatically identified).'
+)
+parser_codereview.add_argument(
+    '-o', '--old_cs',
+    dest='old_cs',
+    help='Copy the current CS in another view to this one.'
+)
+parser_codereview.add_argument(
+    '-n', '--new_cs',
+    dest='new_cs',
+    help='Copy the current CS in another view to this one.'
+)
+parser_codereview.add_argument(
+    'name',
+    nargs='?',
+    help='Name or path of the configspec to apply.',
+)
+
+def handler_codereview(res):
+    create = getattr(res, 'create', None)
+    block = getattr(res, 'block', None)
+    old_cs = getattr(res, 'old_cs', None)
+    new_cs = getattr(res, 'new_cs', None)
+    name = getattr(res, 'name', None)
+
+    code_reviews_dir = utils.find_save_cs_dir(block, False, True)
+
+    if create:
+        pass
+    else:
+        pass
+
+parser_codereview.set_defaults(func=handler_codereview)
 
 
 # main
