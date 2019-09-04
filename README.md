@@ -49,6 +49,28 @@ Available options:
 <br>
 <br>
 
+:pushpin: **`gfcc setcs`**
+
+| git equivalent | description | clearcase actions |
+| --- | --- | --- |
+| `git checkout` |  Apply the provided cs in your view. | Identify the appropriate source for the cs content and apply it using `cleartool setcs`. |
+
+Used in conjunction with `gfcc savecs` to track development across several files, this command emulates `git checkout`.
+
+With due respect to the inevitable differences, the name of the shared configspec file can be seen as the branch name, and each version of that configspec reflects the evolution of the included files with time, as the history of commits does in git. Using `gfcc setcs <name>` will get you the files as stated in the latest version of *<name>.cs*, and using `gfcc setcs <name>@@/other/version` will get you the files selected in that earlier point in time; similarly to *git checkout <branch_name>* and *git checkout <older_commit_sha>*.
+
+
+`-b` `--block` Specify block (needed if it can not be automatically identified because you are not working inside the block file-tree, or want to take the cs from a different block). Source path will be *src/`blockname`/cs* .
+
+`-v` `--view` Copy the current CS in another view to this one.
+
+`-k` `--backup` Save current CS in a backup file before applying the new CS.
+
+`[cs-file]` Name or path of the configspec to apply.
+
+<br>
+<br>
+
 :pushpin: **`gfcc diff`**
 
 | git equivalent | description | clearcase actions |
@@ -228,23 +250,6 @@ Configspec files location:
 
 `[cs-file-name]` Name of a shared configspec to save to.
 
-
-<br>
-<br>
-
-:pushpin: **`gfcc setcs`**
-
-| description | clearcase actions |
-| --- | --- |
-| Apply the provided cs in your view. | Identify the source for the cs content and apply it using `cleartool setcs`. |
-
-`-b` `--block` Specify block (needed if it can not be automatically identified because you are not working inside the block file-tree, or want to take the cs from a different block). Source path will be *src/`blockname`/cs* .
-
-`-v` `--view` Copy the current CS in another view to this one.
-
-`-k` `--backup` Save current CS in a backup file before applying the new CS.
-
-`[cs-file]` Name or path of the configspec to apply.
 
 <br>
 <br>

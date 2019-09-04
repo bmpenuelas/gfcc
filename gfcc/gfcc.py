@@ -89,11 +89,11 @@ def handler_diff(res):
     items = getattr(res, 'items', None)
     graphical = getattr(res, 'graphical', None)
 
-    for item in items:
+    modified_files, _, _ = utils.get_status(get_modified=True, item=getcwd())
+    for item in (items or modified_files):
         if graphical:
-            modified_files, _, _ = utils.get_status(get_modified=True, item=item)
             if modified_files:
-                utils.find_modifications(modified_files, gui=True)
+                utils.find_modifications([item], gui=True)
             else:
                 utils.print_indent('No differences.', 1)
         else:
@@ -253,7 +253,7 @@ parser_checkin.add_argument(
     dest='untracked',
     action='store_true',
     default=False,
-    help=''
+    help='Create element and check-in untracked items too.'
 )
 parser_checkin.add_argument(
     '-i', '--identical',
