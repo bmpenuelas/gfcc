@@ -4,6 +4,7 @@ import subprocess
 
 from   os       import getcwd, walk, remove
 from   os.path  import abspath, join, isdir, relpath, dirname, split, exists
+from   shutil   import rmtree
 from   pathlib  import Path
 from   datetime import datetime
 
@@ -44,14 +45,18 @@ def exists_try(filepath):
     return False
 
 
-def rm(files, r=False):
+def rm(to_remove, r=False):
     '''Remove via shell command'''
 
-    if isinstance(files, (list, tuple)):
-        return [rm(file_i) for file_i in files]
+    if isinstance(to_remove, (list, tuple)):
+        return [rm(file_i) for file_i in to_remove]
     else:
-        cmd_rm = ['rm', '-' + ('r' if r and isdir(files) else '') + 'f', abspath(files)]
-        return run_cmd_command(cmd_rm)
+        if exists(to_remove):
+            if isdir(to_remove):
+                rmtree(to_remove)
+            else:
+                remove(to_remove)
+        return True
 
 
 def print_indent(text, indent):
