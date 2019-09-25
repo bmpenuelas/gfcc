@@ -48,7 +48,7 @@ def handler_status(res):
     checked_out = getattr(res, 'checked-out', None)
     items = getattr(res, 'items', None) or [None]
 
-    utils.print_indent(utils.run_cmd_command('cleartool pwv')[0].strip(), 0)
+    utils.print_indent('Current view: ' + utils.get_working_view_name(), 0)
 
     for item in items:
         utils.print_indent('Status in ' +  (relpath(item) if item else basename(abspath('.'))) + ':', 0)
@@ -60,8 +60,13 @@ def handler_status(res):
         utils.print_indent((utils.to_rel_path(modified_files) or ['None.']), 2)
 
         if untracked != 'no':
+            untracked_filtered = [item for item in utils.to_rel_path(untracked_files) if not item.endswith(utils.TEMPORARY_FILE_EXTENSIONS)]
+            untracked_ignored = [item for item in utils.to_rel_path(untracked_files) if item.endswith(utils.TEMPORARY_FILE_EXTENSIONS)]
             utils.print_indent('Untracked files:', 1)
-            utils.print_indent((utils.to_rel_path(untracked_files) or ['None.']), 2)
+            utils.print_indent((untracked_filtered or ['None.']), 2)
+            if untracked_ignored:
+              utils.print_indent('Untracked files (ignored):', 1)
+              utils.print_indent(untracked_ignored, 2)
 
         if checked_out:
             utils.print_indent('Checked-out files unmodified:', 1)
@@ -162,7 +167,7 @@ parser_log.set_defaults(func=handler_log)
 # Subparser for: gfcc clean
 parser_clean = subparsers.add_parser('clean', aliases=['cl'], help='Remove untracked files.')
 parser_clean.add_argument(
-    '-a', '--clean_all',
+    '-a', '--all',
     dest='clean_all',
     action='store_true',
     default=False,
@@ -652,7 +657,7 @@ def handler_setcs(res):
         utils.set_cs(cs_to_apply)
         utils.print_indent('Current CS set to: ' + cs_name, 0)
     else:
-        utils.print_indent('Source CS file could not be identified with the provided parameters or found in your filesystem.', 0)
+        utils.print_indent('Error: CS file not found. It could not be identified with the provided parameters or found in your filesystem, maybe not visible due to current cs.', 0)
         return
 
 parser_setcs.set_defaults(func=handler_setcs)

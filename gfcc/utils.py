@@ -516,7 +516,7 @@ def get_cs_path(block=None, cs_file_name=None):
     save_cs_dir = find_save_cs_dir(block, is_user)
     if not save_cs_dir:
         return None
-    save_cs_file_name = (cs_file_name or get_working_view_name()) + '.cs'
+    save_cs_file_name = (cs_file_name or get_working_view_name())
     return join(save_cs_dir, save_cs_file_name)
 
 
