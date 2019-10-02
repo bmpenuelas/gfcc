@@ -1,6 +1,7 @@
 import os
 import re
 import subprocess
+import json
 
 from   os       import getcwd, walk, remove
 from   os.path  import abspath, join, isdir, relpath, dirname, split, exists
@@ -59,6 +60,13 @@ def rm(to_remove, r=False):
         return True
 
 
+def send_mail(subject, body, send_to):
+    if isinstance(send_to, (list, tuple)):
+        send_to = ','.join(send_to)
+    send_mail_command = 'echo "' + body + '" | mail -s "' + subject + '" ' + send_to
+    subprocess.Popen(send_mail_command, shell=True)
+
+
 def print_indent(text, indent):
     '''Print with the provided level of indentation'''
 
@@ -82,6 +90,7 @@ def to_abs_path(rel_path):
     else:
         return abspath(rel_path)
 
+
 def to_rel_path(abs_path, from_path=None):
     '''Shorthand for list of paths to relpath'''
 
@@ -97,6 +106,24 @@ def regex_match(expression, text):
     search_result = re.match(expression, text)
     if search_result:
         return search_result.groupdict()
+
+
+def get_gfcc_config_from_cs(cs_filename=None, view=False):
+    '''A JSON can be included in the cs comments as gfcc_config={...}'''
+    cs_text_lines = get_cs_text(cs_filename, view)
+    cfg_string = ''
+    for line in cs_text_lines:
+        cfg_match = re.match(r'#+\s*gfcc_config\s*=\s*(\{.*)', line)
+        comment_match = re.match(r'#+(.*)', line)
+        if cfg_string:
+            if comment_match:
+                cfg_string += comment_match.group(1)
+            else:
+                break
+        elif cfg_match:
+            cfg_string = cfg_match.group(1)
+    gfcc_config = json.loads(cfg_string)
+    return gfcc_config
 
 
 def list_checked_out(directory=None, absolute=False):

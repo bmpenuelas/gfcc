@@ -22,8 +22,8 @@ parser_status.add_argument(
     help='Show untracked files.'
 )
 parser_status.add_argument(
-    '-v', '--view',
-    dest='view',
+    '-wv', '--whole-view',
+    dest='whole-view',
     action='store_true',
     default=False,
     help='Show modifications in the whole view.'
@@ -44,7 +44,7 @@ parser_status.add_argument(
 
 def handler_status(res):
     untracked = getattr(res, 'untracked', None)
-    whole_view = getattr(res, 'view', None)
+    whole_view = getattr(res, 'whole-view', None)
     checked_out = getattr(res, 'checked-out', None)
     items = getattr(res, 'items', None) or [None]
 
@@ -581,7 +581,9 @@ def handler_savecs(res):
     message = getattr(res, 'message', None)
     force = getattr(res, 'force', None)
     absolute_path = getattr(res, 'absolute-path', None)
-    cs_file_name = getattr(res, 'cs-file-name', None)
+    cs_file_name = getattr(res, 'cs-file-name', '')
+
+    gfcc_config = utils.get_gfcc_config_from_cs()
 
     if cs_file_name and not message:
         return utils.print_indent(
@@ -610,6 +612,10 @@ def handler_savecs(res):
     utils.set_cs(current_cs)
     remove('current.cs.bak')
     utils.print_indent('Current version of your CS saved in: ' + relpath(absolute_path), 1)
+
+    if cs_file_name and gfcc_config and gfcc_config['email_updates_to']:
+        utils.send_mail('CS Updated: ' + cs_file_name, message, gfcc_config['email_updates_to'])
+        utils.print_indent('Sent update email to ' + ', '.join(gfcc_config['email_updates_to']), 2)
 
 parser_savecs.set_defaults(func=handler_savecs)
 
