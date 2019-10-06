@@ -13,13 +13,23 @@ Some companies keep projects in **ClearCase** while most people currently prefer
 
     `pip3 install gfcc`
 
+    * Update:
+
+        `pip3 install --upgrade gfcc`
+
 * Manual:
 
-    Download or clone the project, and run `pip3 install --user -e .` inside the `/gfcc` directory, at the same level as `setup.py` (not inside /gfcc/gfcc).
+    [Download](https://github.com/bmpenuelas/gfcc/archive/master.zip) or `git clone https://github.com/bmpenuelas/gfcc.git`. Enter the gfcc directory (`cd gfcc`) and run `pip3 install --user -e .` (it has to be run at the same level as `setup.py`, not in gfcc/gfcc).
+
+    * Update:
+
+        Run `git pull` from the same directory directory where you ran the install command.
+
+<br>
 
 Now you can type `gfcc` add access all the commands.
 
-(In more restrictive environments you might need to run it as `python3 -m gfcc` and create an alias like `alias gfcc="python3 -m gfcc"` if using the *bash* shell or `alias gfcc 'python3 -m gfcc'` if using *csh* or *tcsh* )
+(In more restrictive environments you might need not be able to run it directly, you would need to run it as `python3 -m gfcc`. In that case create an alias like `alias gfcc="python3 -m gfcc"` if using the *bash* shell or `alias gfcc 'python3 -m gfcc'` if using *csh* or *tcsh* )
 
 <br>
 <br>

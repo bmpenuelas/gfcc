@@ -61,10 +61,26 @@ def rm(to_remove, r=False):
 
 
 def send_mail(subject, body, send_to):
+    header = [
+        'MIME-Version: 1.0',
+        'Content-Type: text/html',
+        'Content-Disposition: inline',
+        '<html>',
+        '<body>',
+    ]
+    footer = [
+        '</body>',
+        '</html>',
+    ]
     if isinstance(send_to, (list, tuple)):
         send_to = ','.join(send_to)
-    send_mail_command = 'echo "' + body + '" | mail -s "' + subject + '" ' + send_to
-    subprocess.Popen(send_mail_command, shell=True)
+    email_lines = ['To: ' + send_to, 'Subject: ' + subject] + header + body + footer
+    temp_file = abspath(join('.', 'cs_mail'))
+    write_to_file(email_lines, temp_file)
+    send_mail_command = 'sendmail -t < ' + temp_file
+    send_mail_process = subprocess.Popen(send_mail_command, shell=True)
+    send_mail_process.wait()
+    remove(temp_file)
 
 
 def print_indent(text, indent):

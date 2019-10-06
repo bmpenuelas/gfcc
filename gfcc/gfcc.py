@@ -584,6 +584,7 @@ def handler_savecs(res):
     cs_file_name = getattr(res, 'cs-file-name', '')
 
     gfcc_config = utils.get_gfcc_config_from_cs()
+    mail_updates = cs_file_name and gfcc_config and gfcc_config['email_updates_to']
 
     if cs_file_name and not message:
         return utils.print_indent(
@@ -605,6 +606,11 @@ def handler_savecs(res):
         utils.cc_checkx('out', False, absolute_path)
 
     utils.write_to_file(current_cs, absolute_path)
+
+    if mail_updates:
+        diff = utils.find_modifications([absolute_path])
+        diff = (['<pre style="font: monospace">'] + diff[0].split('\n') + ['</pre>']) if diff else []
+
     utils.cc_checkx(
         'in', False, absolute_path,
         message=message or ('Saved ' + utils.get_date_string()), identical=force
@@ -613,8 +619,9 @@ def handler_savecs(res):
     remove('current.cs.bak')
     utils.print_indent('Current version of your CS saved in: ' + relpath(absolute_path), 1)
 
-    if cs_file_name and gfcc_config and gfcc_config['email_updates_to']:
-        utils.send_mail('CS Updated: ' + cs_file_name, message, gfcc_config['email_updates_to'])
+    if mail_updates:
+        mail_body = [message] + 2*['\n'] + diff
+        utils.send_mail('CS Updated: ' + cs_file_name, mail_body, gfcc_config['email_updates_to'])
         utils.print_indent('Sent update email to ' + ', '.join(gfcc_config['email_updates_to']), 2)
 
 parser_savecs.set_defaults(func=handler_savecs)
