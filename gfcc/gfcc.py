@@ -468,7 +468,7 @@ def handler_diffcs(res):
 
         cs_a, cs_b, a_not_b, b_not_a, diff_v = utils.diff_cs(csfile_a, csfile_b, bool(view), diff_files)
 
-        if not diff_files:
+        if not diff_files and (cs_a and cs_b):
             if not any([a_not_b, b_not_a, diff_v]):
                 utils.print_indent('Identical: Both CS files select the same files and versions.', 1)
             else:
@@ -667,6 +667,9 @@ def handler_setcs(res):
             utils.print_indent('Current CS backup saved in ./current.cs.bak', 0)
         if view:
             cs_to_apply = utils.get_cs_text(cs_to_apply, view)
+            if not cs_to_apply:
+                utils.print_indent('Error: View cs could not be found.', 0)
+                return
         utils.set_cs(cs_to_apply)
         utils.print_indent('Current CS set to: ' + cs_name, 0)
     else:

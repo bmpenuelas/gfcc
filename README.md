@@ -1,5 +1,5 @@
 # gfcc
-## git flavoured ClearCase
+## git flavoured clearcase
 
 *gfcc* provides a layer of automation on top of ClearCase. The goal is twofold: speed-up working with cc, and provide additional checks for a more robust workflow.
 

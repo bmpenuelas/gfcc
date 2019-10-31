@@ -98,6 +98,19 @@ def get_date_string():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def choose_options(options, indent=0, choose_message='Choice: '):
+    n_options = len(options)
+    for (index, option) in enumerate(options):
+        print_indent('[' + str(index) + '] ' + option, indent)
+    selection = None
+    while not selection:
+        print_indent(choose_message, indent)
+        selection = input()
+        if int(selection) not in range(0, n_options + 1):
+            selection = None
+    return(selection)
+
+
 def to_abs_path(rel_path):
     '''Shorthand for list of paths to abspath'''
 
@@ -401,22 +414,26 @@ def get_cs_text(cs_filename=None, view=False):
             if not any(['Error: View tag' in line for line in result_user_name[1]]):
                 return result_user_name[0]
         print_indent('Error getting cs ' + cs_filename, 0)
-        return
+        return False
 
     elif cs_filename:
         return [line.rstrip() for line in open(cs_filename)]
     else:
         return run_cmd_command('cleartool catcs', get_lines=True)[0]
 
-def get_cs_files(cs_filename=None, view=False):
+def get_cs_files(cs_filename=None, view=False, file_path=''):
     '''Get the files selected by a given configspec file and their versions'''
 
     cs_file_current = get_cs_text()
     if cs_filename:
         cs_file_new = get_cs_text(cs_filename, view)
-        set_cs(cs_file_new)
+        if cs_file_new:
+            set_cs(cs_file_new)
+        else:
+            return None, None
 
-    ct_ls = run_cmd_command('cleartool ls -r', get_lines=True)[0]
+
+    ct_ls = run_cmd_command('cleartool ls -r' + file_path, get_lines=True)[0]
     cs_files = {}
     for item in ct_ls:
         matched = re.search(r'^(?P<filename>.*?)(@@(?P<version>.*?))?\s*(Rule: (?P<rule>.*?))?$', item)
@@ -459,28 +476,32 @@ def diff_cs(csfile_a, csfile_b, view=False, diff_files=False):
 
     cs_a = get_cs_files(csfile_a, view=view)
     cs_b = get_cs_files(csfile_b)
-    if diff_files:
-        if ('DIFFTOOL' in os.environ):
-            filename_a = csfile_a
-            filename_b = (csfile_b or 'CURRENT')
-            created_a = False
-            created_b = False
-            if not exists_try(filename_a):
-                created_a = True
-                write_to_file(cs_a[1], filename_a)
-            if not exists_try(filename_b):
-                created_b = True
-                write_to_file(cs_b[1], filename_b)
-            run_cmd_command([os.environ['DIFFTOOL'], abspath(filename_a), abspath(filename_b)])
-            if created_a:
-                remove(filename_a)
-            if created_b:
-                remove(filename_b)
+    if cs_a[0] and cs_b[0]:
+        if diff_files:
+            if ('DIFFTOOL' in os.environ):
+                filename_a = csfile_a
+                filename_b = (csfile_b or 'CURRENT')
+                created_a = False
+                created_b = False
+                if not exists_try(filename_a):
+                    created_a = True
+                    write_to_file(cs_a[1], filename_a)
+                if not exists_try(filename_b):
+                    created_b = True
+                    write_to_file(cs_b[1], filename_b)
+                run_cmd_command([os.environ['DIFFTOOL'], abspath(filename_a), abspath(filename_b)])
+                if created_a:
+                    remove(filename_a)
+                if created_b:
+                    remove(filename_b)
+            else:
+                print_indent('Error: environment variable DIFFTOOL is not set. Set it to your preferred diff tool, for example: setenv DIFFTOOL meld', 0)
+            return cs_a, cs_b, None, None, None
         else:
-            print_indent('Error: environment variable DIFFTOOL is not set. Set it to your preferred diff tool, for example: setenv DIFFTOOL meld', 0)
-        return cs_a, cs_b, None, None, None
+            return (cs_a, cs_b) + diff_cs_versions(cs_a[0], cs_b[0])
     else:
-        return (cs_a, cs_b) + diff_cs_versions(cs_a[0], cs_b[0])
+        return None, None, None, None, None
+
 
 
 def diff_cs_versions(cs_files_a, cs_files_b):
