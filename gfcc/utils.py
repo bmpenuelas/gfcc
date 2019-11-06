@@ -19,14 +19,14 @@ DEFAULT_CS = [
 ]
 
 
-def run_cmd_command(cmd, get_lines=False, background=False):
+def run_cmd(cmd, get_lines=False, background=False):
     '''Run a command in the shell and return the output'''
 
-    cmd = cmd.split(' ') if not isinstance(cmd, (list, tuple)) else cmd
+    is_shell = not isinstance(cmd, (list, tuple))
     if background:
-        return subprocess.Popen(cmd)
+        return subprocess.Popen(cmd, shell=is_shell)
     else:
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=is_shell)
         decoded_out = result.stdout.decode('utf-8')
         decoded_err = result.stderr.decode('utf-8')
         return (decoded_out, decoded_err) if not get_lines else (decoded_out.split('\n'), decoded_err.split('\n'))
@@ -159,7 +159,7 @@ def list_checked_out(directory=None, absolute=False):
     '''Take the whole view/directory and returns abs/rel paths of the files'''
 
     clearcase_cmd_list_checked_out = ['cleartool', 'lsco', '-cview', '-a', '-s']
-    output = run_cmd_command(clearcase_cmd_list_checked_out, True)[0]
+    output = run_cmd(clearcase_cmd_list_checked_out, True)[0]
     if not directory:
         result = [item for item in output if item]
     else:
@@ -177,9 +177,9 @@ def find_modifications(to_check, gui=False):
     else:
         clearcase_cmd_find_modifications = ['cleartool', 'diff']  + (['-graphical'] if gui else []) + ['-predecessor', to_check]
         if gui:
-            output = run_cmd_command(clearcase_cmd_find_modifications, background=True)
+            output = run_cmd(clearcase_cmd_find_modifications, background=True)
         else:
-            output = run_cmd_command(clearcase_cmd_find_modifications)[0]
+            output = run_cmd(clearcase_cmd_find_modifications)[0]
             modified = not 'identical' in output
             return output if modified else None
 
@@ -198,7 +198,7 @@ def list_untracked(directory):
 
     directory = directory or '.'
     clearcase_cmd_find_untracked = ['cleartool', 'ls', '-rec', '-view_only', directory]
-    result = run_cmd_command(clearcase_cmd_find_untracked, True)
+    result = run_cmd(clearcase_cmd_find_untracked, True)
     directory = None if abspath(directory) == getcwd() else relpath(abspath(directory), getcwd())
     return list(filter(
         lambda x: x and ('Rule' not in x) and (not directory or x.startswith(directory) or x.startswith('./' + directory)),
@@ -213,7 +213,7 @@ def cc_lshist(item, lines=15, recursive=False, gui=False):
         + (['-recurse'] if recursive else []) \
         + (['-graphical'] if gui else ['-last', str(lines)]) \
         + [item]
-    result = run_cmd_command(clearcase_cmd_lshist, True, gui)
+    result = run_cmd(clearcase_cmd_lshist, True, gui)
     if gui:
         return result
     else:
@@ -223,7 +223,7 @@ def cc_xlsvtree(item):
     '''ClearCase open tree'''
 
     clearcase_cmd_xlsvtree = ['xclearcase', '-vtree', item]
-    return run_cmd_command(clearcase_cmd_xlsvtree, False, True)
+    return run_cmd(clearcase_cmd_xlsvtree, False, True)
 
 
 def cc_get_selected(item):
@@ -233,7 +233,7 @@ def cc_get_selected(item):
         return [cc_get_selected(element) for element in item]
     else:
         clearcase_cmd_get_v_rule = ['cleartool', 'ls', item]
-        result = run_cmd_command(clearcase_cmd_get_v_rule, True)
+        result = run_cmd(clearcase_cmd_get_v_rule, True)
         return regex_match(r'^(?P<cc_path>.*?)\s', result[0][0])['cc_path']
 
 
@@ -244,7 +244,7 @@ def cc_checkout(to_cc, verbose_indent=1):
         return [cc_checkout(element, verbose_indent) for element in to_cc]
     else:
         clearcase_cmd_checkout = ['cleartool', 'co', '-unr', '-nc', '-version', to_cc]
-        result = run_cmd_command(clearcase_cmd_checkout, True)
+        result = run_cmd(clearcase_cmd_checkout, True)
         if verbose_indent:
             print_indent('Checked out: ' + to_cc, verbose_indent)
         return result
@@ -257,7 +257,7 @@ def cc_checkin(to_cc, message, identical=False, verbose_indent=1):
         return [cc_checkin(element, message, identical, verbose_indent) for element in to_cc]
     else:
         clearcase_cmd_checkin = ['cleartool', 'ci', '-c', message] + (['-identical'] if identical else []) + [to_cc]
-        result = run_cmd_command(clearcase_cmd_checkin, True)
+        result = run_cmd(clearcase_cmd_checkin, True)
         if verbose_indent:
             search_version = re.search(r'^.*?version "(?P<version>.*?)"', result[0][0])
             if search_version and search_version.group('version'):
@@ -278,7 +278,7 @@ def cc_uncheckout(to_cc, keep, verbose_indent=1):
         if verbose_indent:
             print_indent('Uncheckout: ' + to_cc, verbose_indent)
         clearcase_cmd_uncheckout = ['cleartool', 'unco', '-keep' if keep else '-rm']
-        result = run_cmd_command(clearcase_cmd_uncheckout + [to_cc], True)
+        result = run_cmd(clearcase_cmd_uncheckout + [to_cc], True)
         return result
 
 
@@ -290,7 +290,7 @@ def cc_mkelem(to_cc, message, verbose_indent=1):
     else:
         cc_checkout(dirname(abspath(to_cc)))
         clearcase_cmd_mkelem = ['cleartool', 'mkelem', '-c', message, '-ci', ('-mkpath' if isdir(to_cc) else ''), to_cc]
-        mk_result = run_cmd_command(clearcase_cmd_mkelem, True)
+        mk_result = run_cmd(clearcase_cmd_mkelem, True)
         if verbose_indent:
             print_indent('Create and Checkin: ' + to_cc, verbose_indent)
             search_version = re.search(r'^.*?version "(?P<version>.*?)"', mk_result[0][0])
@@ -394,7 +394,7 @@ def get_status(get_modified=False, get_untracked=False, get_checkedout_unmodifie
 def get_working_view_name():
     "Get current view name as string"
 
-    result_pwv = run_cmd_command('cleartool pwv', get_lines=True)
+    result_pwv = run_cmd('cleartool pwv', get_lines=True)
     if not any(['Set view: ** NONE **' in line for line in result_pwv[0]]):
         search_view = re.search(r'^Set view: (?P<view>.*?)$', result_pwv[0][1])
         if search_view:
@@ -406,11 +406,11 @@ def get_cs_text(cs_filename=None, view=False):
     "Get currently applied CS as list of lines"
 
     if view and cs_filename:
-        result_provided_name = run_cmd_command('cleartool catcs -tag ' + cs_filename, get_lines=True)
+        result_provided_name = run_cmd('cleartool catcs -tag ' + cs_filename, get_lines=True)
         if not any(['Error: View tag' in line for line in result_provided_name[1]]):
             return result_provided_name[0]
         elif 'USER' in os.environ:
-            result_user_name = run_cmd_command('cleartool catcs -tag ' + os.environ['USER'] + '_' + cs_filename, get_lines=True)
+            result_user_name = run_cmd('cleartool catcs -tag ' + os.environ['USER'] + '_' + cs_filename, get_lines=True)
             if not any(['Error: View tag' in line for line in result_user_name[1]]):
                 return result_user_name[0]
         print_indent('Error getting cs ' + cs_filename, 0)
@@ -419,9 +419,10 @@ def get_cs_text(cs_filename=None, view=False):
     elif cs_filename:
         return [line.rstrip() for line in open(cs_filename)]
     else:
-        return run_cmd_command('cleartool catcs', get_lines=True)[0]
+        return run_cmd('cleartool catcs', get_lines=True)[0]
 
-def get_cs_files(cs_filename=None, view=False, file_path=''):
+
+def get_file_versions(cs_filename=None, view=False, file_path='', get_latest=False):
     '''Get the files selected by a given configspec file and their versions'''
 
     cs_file_current = get_cs_text()
@@ -432,10 +433,14 @@ def get_cs_files(cs_filename=None, view=False, file_path=''):
         else:
             return None, None
 
+    if get_latest:
+        cmd = 'cleartool find . -version "{version(main/LATEST) && ! lbtype(find)}" -print'
+    else:
+        cmd = 'cleartool ls -r ' + file_path
 
-    ct_ls = run_cmd_command('cleartool ls -r' + file_path, get_lines=True)[0]
+    result = run_cmd(cmd, get_lines=True)[0]
     cs_files = {}
-    for item in ct_ls:
+    for item in result:
         matched = re.search(r'^(?P<filename>.*?)(@@(?P<version>.*?))?\s*(Rule: (?P<rule>.*?))?$', item)
         if matched:
             if matched.group('filename'):
@@ -444,6 +449,7 @@ def get_cs_files(cs_filename=None, view=False, file_path=''):
                     cs_files[matched.group('filename')]['version'] = matched.group('version')
                 if matched.group('rule'):
                     cs_files[matched.group('filename')]['rule'] = matched.group('rule')
+
     if cs_filename:
         set_cs(cs_file_current)
     return cs_files, cs_file_new if cs_filename else cs_file_current
@@ -465,7 +471,7 @@ def set_cs(new_cs):
     if isinstance(new_cs, (list, tuple)):
         write_to_file(new_cs, 'temp.cs')
         new_cs = 'temp.cs'
-    result = run_cmd_command('cleartool setcs ' +  new_cs)
+    result = run_cmd('cleartool setcs ' +  new_cs)
     if new_cs == 'temp.cs':
         remove(new_cs)
     return result
@@ -474,8 +480,8 @@ def set_cs(new_cs):
 def diff_cs(csfile_a, csfile_b, view=False, diff_files=False):
     '''Find which files and versions selected by two cs differ'''
 
-    cs_a = get_cs_files(csfile_a, view=view)
-    cs_b = get_cs_files(csfile_b)
+    cs_a = get_file_versions(csfile_a, view=view)
+    cs_b = get_file_versions(csfile_b)
     if cs_a[0] and cs_b[0]:
         if diff_files:
             if ('DIFFTOOL' in os.environ):
@@ -489,7 +495,7 @@ def diff_cs(csfile_a, csfile_b, view=False, diff_files=False):
                 if not exists_try(filename_b):
                     created_b = True
                     write_to_file(cs_b[1], filename_b)
-                run_cmd_command([os.environ['DIFFTOOL'], abspath(filename_a), abspath(filename_b)])
+                run_cmd([os.environ['DIFFTOOL'], abspath(filename_a), abspath(filename_b)])
                 if created_a:
                     remove(filename_a)
                 if created_b:

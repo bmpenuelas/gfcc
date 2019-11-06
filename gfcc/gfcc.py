@@ -231,7 +231,7 @@ def handler_checkout(res):
 
         if edit and ('EDITOR' in os.environ) and not isdir(item):
             utils.print_indent('opening in ' + os.environ['EDITOR'] + ' ...', 2)
-            utils.run_cmd_command([os.environ['EDITOR'], item], background=True)
+            utils.run_cmd([os.environ['EDITOR'], item], background=True)
         elif not ('EDITOR' in os.environ):
             utils.print_indent('Error opening file: EDITOR environment variable is not set. You can set it like: setenv EDITOR gedit', 2)
 
@@ -315,8 +315,12 @@ def handler_uncheckout(res):
     recursive = getattr(res, 'recursive', None)
     keep = getattr(res, 'keep', None)
     items = getattr(res, 'items', None)
-    recursive = recursive if items else True
-    items = items or [getcwd()]
+
+    if not items:
+        modified_files, _, checked_out_unmodified = utils.get_status(
+            get_modified=True, get_untracked=False, get_checkedout_unmodified=True, item=getcwd()
+        )
+        items = modified_files + checked_out_unmodified
 
     for item in items:
         item = abspath(item)
@@ -334,7 +338,7 @@ parser_edcs.add_argument(
 )
 
 def handler_edcs(res):
-    utils.run_cmd_command(['cleartool', 'edcs'], False, True)
+    utils.run_cmd(['cleartool', 'edcs'], False, True)
 
 parser_edcs.set_defaults(func=handler_edcs)
 
@@ -384,13 +388,24 @@ def handler_find(res):
         chdir(directory)
 
     if latest:
-        files_versions = utils.get_cs_files(view, view=bool(view))[0]
+        files_versions = utils.get_file_versions(view, view=bool(view))[0]
         files_rule_latest = [
             file_i for file_i in files_versions
             if (not file_i == 'cs' and not file_i.endswith(('.cs', '/cs', '/cs/user')) and files_versions[file_i]['rule'].endswith('/LATEST'))]
 
-        utils.print_indent('Files selected by rule /LATEST' + ((' in view ' + view) if view else '') + ((' in ' + directory) if directory else '') + ' : ', 0)
+        utils.print_indent('Files selected by rule /LATEST' + ((' in view ' + view) if view else '') + ((' in ' + directory) if directory else '') + ': ', 0)
         utils.print_indent(files_rule_latest or 'None.', 1)
+
+    if not_latest:
+        files_versions = utils.get_file_versions(view, view=bool(view))[0]
+        files_latest_versions = utils.get_file_versions(get_latest=True)[0]
+        files_not_latest = [
+            file_i for file_i in files_versions
+            if ((file_i in files_latest_versions) and (files_versions[file_i]['version'] != files_latest_versions[file_i]['version']))]
+
+        utils.print_indent('Files not at their latest version ' + ((' in view ' + view) if view else '') + ((' in ' + directory) if directory else '') + ': ', 0)
+        result_text = [file_i + '   (selected: ' + files_versions[file_i]['version'] + ' vs latest: ' + files_latest_versions[file_i]['version']  + ')'for file_i in files_not_latest]
+        utils.print_indent(result_text or 'None.', 1)
 
 
 parser_find.set_defaults(func=handler_find)
