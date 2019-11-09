@@ -445,6 +445,13 @@ parser_diffcs.add_argument(
     help='Generate cs rules so that you get the same versions as others.'
 )
 parser_diffcs.add_argument(
+    '-r', '--review',
+    dest='review',
+    action='store_true',
+    default=False,
+    help='Review the differences with your preferred difftool.'
+)
+parser_diffcs.add_argument(
     'cs-file',
     nargs='*',
     help='CS file to diff against current one, or two CS files to be diffed.',
@@ -456,6 +463,7 @@ def handler_diffcs(res):
     block = getattr(res, 'block', None)
     view = getattr(res, 'view', None)
     gen_rules = getattr(res, 'gen_rules', None)
+    review = getattr(res, 'review', None)
     cs_file = getattr(res, 'cs-file', None)
 
     csfile_a = utils.guess_cs_file(block, view, cs_file[0] if cs_file else None)
@@ -475,65 +483,11 @@ def handler_diffcs(res):
             'Comparing ' + \
             ('files selected by ' if not diff_files else '') + \
             'CS files ' + relpath(csfile_a) + ' vs ' +  (relpath(csfile_b) if csfile_b else 'CURRENT') + \
-            (' ...' if diff_files else ' in ' + (relpath(dir_i) if dir_i != getcwd() else basename(abspath(dir_i))) + ' :' ),
+            (' ...' if diff_files else ' in ' + (relpath(dir_i) if dir_i != getcwd() else basename(abspath(dir_i))) + ':' ),
             0
         )
 
-        chdir(dir_i)
-
-        cs_a, cs_b, a_not_b, b_not_a, diff_v = utils.diff_cs(csfile_a, csfile_b, bool(view), diff_files)
-
-        if not diff_files and (cs_a and cs_b):
-            if not any([a_not_b, b_not_a, diff_v]):
-                utils.print_indent('Identical: Both CS files select the same files and versions.', 1)
-            else:
-                utils.print_indent('Files selected by ' + (csfile_b or 'CURRENT') + ' and NOT by ' + relpath(csfile_a)  + ':', 1)
-                if not b_not_a:
-                    utils.print_indent('None.', 2)
-                else:
-                    for item in utils.sort_paths(b_not_a):
-                        if gen_rules:
-                            utils.print_indent(('element ' + abspath(item) + ' ' + cs_b[0][item]['rule']) if cs_b[0][item]['rule']
-                                else ('* ' + relpath(item) + ' has NO rule in ' + (csfile_b or 'CURRENT')), 2)
-                        else:
-                            utils.print_indent(relpath(item) + '   (Rule ' + (cs_b[0][item]['rule'] or 'NONE') + ')', 2)
-
-                utils.print_indent('Files selected by ' + relpath(csfile_a) + ' and NOT by ' + (csfile_b or 'CURRENT') + ':', 1)
-                if not a_not_b:
-                    utils.print_indent('None.', 2)
-                else:
-                    for item in utils.sort_paths(a_not_b):
-                        if gen_rules:
-                            utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
-                                else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
-                        else:
-                            utils.print_indent(relpath(item) + '   (Rule ' + (cs_a[0][item]['rule'] or 'NONE') + ')', 2)
-
-                utils.print_indent('Files with different versions in ' + (csfile_b or 'CURRENT') + ' vs ' + relpath(csfile_a) + ':', 1)
-                if not diff_v:
-                    utils.print_indent('None.', 2)
-                else:
-                    for item in utils.sort_paths(diff_v.keys()):
-                        if gen_rules:
-                            utils.print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
-                                else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
-                        else:
-                            utils.print_indent(
-                                relpath(item) \
-                                + '   ' + diff_v[item][1]['version'] + ' vs ' + diff_v[item][0]['version'] \
-                                + '   (Rule ' + (diff_v[item][1]['rule'] or 'NONE') \
-                                + ' vs ' + (diff_v[item][0]['rule'] or 'NONE') + ')',
-                                2
-                            )
-
-            if csfile_b == None:
-                modified_files, _, _ = utils.get_status(
-                    get_modified=True, item=dir_i
-                )
-                if modified_files:
-                    utils.print_indent('Warning: The following changes are local, only visible in your view.', 1)
-                    utils.print_indent('Modified files:', 2)
-                    utils.print_indent((modified_files or ['None.']), 3)
+        utils.diffcs(csfile_a, csfile_b, view, diff_files, dir_i, gen_rules, review)
 
 parser_diffcs.set_defaults(func=handler_diffcs)
 
@@ -699,27 +653,27 @@ parser_codereview = subparsers.add_parser('codereview', aliases=['cr'], help='Cr
 parser_codereview.add_argument(
     '-c', '--create',
     dest='create',
-    help='Block name (if you want to load a block or user cs file and the path cannot be automatically identified).'
+    help='Create a diffs bundle to be reviewed by others.'
 )
 parser_codereview.add_argument(
     '-b', '--block',
     dest='block',
-    help='Block name (if you want to load a block or user cs file and the path cannot be automatically identified).'
+    help='Block to which this code review belongs.'
 )
 parser_codereview.add_argument(
     '-o', '--old_cs',
     dest='old_cs',
-    help='Copy the current CS in another view to this one.'
+    help='CS with versions reflecting the "OLD" state.'
 )
 parser_codereview.add_argument(
     '-n', '--new_cs',
     dest='new_cs',
-    help='Copy the current CS in another view to this one.'
+    help='CS with versions reflecting the "NEW" state.'
 )
 parser_codereview.add_argument(
     'name',
-    nargs='?',
-    help='Name or path of the configspec to apply.',
+    nargs='*',
+    help='Name or path of the codereview you want to go through.',
 )
 
 def handler_codereview(res):
@@ -729,12 +683,14 @@ def handler_codereview(res):
     new_cs = getattr(res, 'new_cs', None)
     name = getattr(res, 'name', None)
 
+    if (not (old_cs and new_cs)) and (len(name) == 2):
+        old_cs = name[0]
+        new_cs = name[1]
+
     code_reviews_dir = utils.find_save_cs_dir(block, False, True)
 
-    if create:
-        pass
-    else:
-        pass
+    if old_cs and new_cs:
+        utils.diffcs(old_cs, new_cs, review_diffs=True)
 
 parser_codereview.set_defaults(func=handler_codereview)
 

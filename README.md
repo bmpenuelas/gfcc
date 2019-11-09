@@ -235,6 +235,8 @@ If no parameters are provided, it will diff your current cs against your last sa
 
 `-g` `--gen_rules` Generate cs rules so that you get the same versions as others.
 
+`-r` `--review` Review the differences with your preferred difftool.
+
 `[csfile(s)]` Config-spec file to diff against current one / two cs files to be diff'ed (not required if `--view`).
 
 <br>
@@ -278,7 +280,7 @@ Configspec files location:
 
 `-n` `--new_cs` CS file with the new status.
 
-`[name]` Name for/of this code review.
+`[name]` Name for/of this code review. If two cs files are provided, the first one is taken as "old" state, and the second one as "new".
 
 <br>
 

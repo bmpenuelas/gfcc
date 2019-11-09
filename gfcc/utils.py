@@ -2,8 +2,9 @@ import os
 import re
 import subprocess
 import json
+import readline
 
-from   os       import getcwd, walk, remove
+from   os       import getcwd, walk, remove, chdir
 from   os.path  import abspath, join, isdir, relpath, dirname, split, exists
 from   shutil   import rmtree
 from   pathlib  import Path
@@ -20,11 +21,11 @@ DEFAULT_CS = [
 
 
 def run_cmd(cmd, get_lines=False, background=False):
-    '''Run a command in the shell and return the output'''
+    ''' Run a command in the shell and return the output '''
 
     is_shell = not isinstance(cmd, (list, tuple))
     if background:
-        return subprocess.Popen(cmd, shell=is_shell)
+        return subprocess.Popen(cmd, shell=is_shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     else:
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=is_shell)
         decoded_out = result.stdout.decode('utf-8')
@@ -33,7 +34,7 @@ def run_cmd(cmd, get_lines=False, background=False):
 
 
 def exists_try(filepath):
-    '''Alternative exists() for some clearcase files not being identified'''
+    ''' Alternative exists() for some clearcase files not being identified '''
 
     if exists(filepath):
         return True
@@ -47,7 +48,7 @@ def exists_try(filepath):
 
 
 def rm(to_remove, r=False):
-    '''Remove via shell command'''
+    ''' Remove files/dirs '''
 
     if isinstance(to_remove, (list, tuple)):
         return [rm(file_i) for file_i in to_remove]
@@ -60,7 +61,18 @@ def rm(to_remove, r=False):
         return True
 
 
+def difftool(file_a, file_b, background=False):
+    ''' Open a diff in difftool set by env variable '''
+
+    if not os.environ['DIFFTOOL']:
+        print_indent('Error: environment variable DIFFTOOL is not set. Set it to your preferred diff tool, for example: setenv DIFFTOOL meld', 0)
+        return False
+    return run_cmd([os.environ['DIFFTOOL'], file_a, file_b], background=background)
+
+
 def send_mail(subject, body, send_to):
+    ''' Send an email using the linux program sendmail '''
+
     header = [
         'MIME-Version: 1.0',
         'Content-Type: text/html',
@@ -84,7 +96,7 @@ def send_mail(subject, body, send_to):
 
 
 def print_indent(text, indent):
-    '''Print with the provided level of indentation'''
+    ''' Print with the provided level of indentation '''
 
     if isinstance(text, (tuple, list)):
         return [print_indent(element, indent) for element in text]
@@ -93,26 +105,31 @@ def print_indent(text, indent):
 
 
 def get_date_string():
-    '''Current date as string'''
+    ''' Current date as string '''
 
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def range_str_to_list(range_str):
+    ''' Take a string like '1,2,5-7,10' and turn it into [1, 2, 5, 6, 7, 10] '''
+
+    return sum(((list(range(*[int(j) + k for k,j in enumerate(i.split('-'))]))
+         if '-' in i else [int(i)]) for i in range_str.split(',')), [])
+
+
 def choose_options(options, indent=0, choose_message='Choice: '):
-    n_options = len(options)
+    ''' Show a list of options and return the chosen index '''
+
     for (index, option) in enumerate(options):
         print_indent('[' + str(index) + '] ' + option, indent)
     selection = None
     while not selection:
-        print_indent(choose_message, indent)
-        selection = input()
-        if int(selection) not in range(0, n_options + 1):
-            selection = None
+        selection = input(indent * INDENTATION + choose_message)
     return(selection)
 
 
 def to_abs_path(rel_path):
-    '''Shorthand for list of paths to abspath'''
+    ''' Shorthand for list of paths to abspath '''
 
     if isinstance(rel_path, (list, tuple)):
         return [to_abs_path(element) for element in rel_path]
@@ -121,7 +138,7 @@ def to_abs_path(rel_path):
 
 
 def to_rel_path(abs_path, from_path=None):
-    '''Shorthand for list of paths to relpath'''
+    ''' Shorthand for list of paths to relpath '''
 
     if isinstance(abs_path, (list, tuple)):
         return [to_rel_path(element, from_path) for element in abs_path]
@@ -130,7 +147,7 @@ def to_rel_path(abs_path, from_path=None):
 
 
 def regex_match(expression, text):
-    '''Shorthand for getting regex matching groups'''
+    ''' Shorthand for getting regex matching groups '''
 
     search_result = re.match(expression, text)
     if search_result:
@@ -138,7 +155,8 @@ def regex_match(expression, text):
 
 
 def get_gfcc_config_from_cs(cs_filename=None, view=False):
-    '''A JSON can be included in the cs comments as gfcc_config={...}'''
+    ''' A JSON can be included in the cs comments as gfcc_config={...} '''
+
     cs_text_lines = get_cs_text(cs_filename, view)
     cfg_string = ''
     for line in cs_text_lines:
@@ -156,7 +174,7 @@ def get_gfcc_config_from_cs(cs_filename=None, view=False):
 
 
 def list_checked_out(directory=None, absolute=False):
-    '''Take the whole view/directory and returns abs/rel paths of the files'''
+    ''' Take the whole view/directory and returns abs/rel paths of the files '''
 
     clearcase_cmd_list_checked_out = ['cleartool', 'lsco', '-cview', '-a', '-s']
     output = run_cmd(clearcase_cmd_list_checked_out, True)[0]
@@ -170,7 +188,7 @@ def list_checked_out(directory=None, absolute=False):
 
 
 def find_modifications(to_check, gui=False):
-    '''Take one or a list of abs or rel paths and return the differences reported by cleartool'''
+    ''' Take one or a list of abs or rel paths and return the differences reported by cleartool '''
 
     if isinstance(to_check, (list, tuple)):
         return list(filter(lambda x: x, [find_modifications(file_i, gui) for file_i in to_check]))
@@ -477,41 +495,38 @@ def set_cs(new_cs):
     return result
 
 
-def diff_cs(csfile_a, csfile_b, view=False, diff_files=False):
+def diff_cs_versions(csfile_a, csfile_b, view=False, diff_files=False):
     '''Find which files and versions selected by two cs differ'''
 
     cs_a = get_file_versions(csfile_a, view=view)
     cs_b = get_file_versions(csfile_b)
     if cs_a[0] and cs_b[0]:
         if diff_files:
-            if ('DIFFTOOL' in os.environ):
-                filename_a = csfile_a
-                filename_b = (csfile_b or 'CURRENT')
-                created_a = False
-                created_b = False
-                if not exists_try(filename_a):
-                    created_a = True
-                    write_to_file(cs_a[1], filename_a)
-                if not exists_try(filename_b):
-                    created_b = True
-                    write_to_file(cs_b[1], filename_b)
-                run_cmd([os.environ['DIFFTOOL'], abspath(filename_a), abspath(filename_b)])
-                if created_a:
-                    remove(filename_a)
-                if created_b:
-                    remove(filename_b)
-            else:
-                print_indent('Error: environment variable DIFFTOOL is not set. Set it to your preferred diff tool, for example: setenv DIFFTOOL meld', 0)
+            filename_a = csfile_a
+            filename_b = (csfile_b or 'CURRENT')
+            created_a = False
+            created_b = False
+            if not exists_try(filename_a):
+                created_a = True
+                write_to_file(cs_a[1], filename_a)
+            if not exists_try(filename_b):
+                created_b = True
+                write_to_file(cs_b[1], filename_b)
+            difftool(abspath(filename_a), abspath(filename_b))
+            if created_a:
+                remove(filename_a)
+            if created_b:
+                remove(filename_b)
             return cs_a, cs_b, None, None, None
         else:
-            return (cs_a, cs_b) + diff_cs_versions(cs_a[0], cs_b[0])
+            return (cs_a, cs_b) + versions_diff(cs_a[0], cs_b[0])
     else:
         return None, None, None, None, None
 
 
 
-def diff_cs_versions(cs_files_a, cs_files_b):
-    '''Find differences in selected files sets'''
+def versions_diff(cs_files_a, cs_files_b):
+    ''' Find differences in selected files sets '''
 
     set_a = set(cs_files_a.keys())
     set_b = set(cs_files_b.keys())
@@ -528,6 +543,91 @@ def diff_cs_versions(cs_files_a, cs_files_b):
         if filename in cs_files_b and cs_files_a[filename]['version'] != cs_files_b[filename]['version']
     }
     return list(files_a_not_b), list(files_b_not_a), different_versions
+
+
+def diffcs(csfile_a, csfile_b, view=None, diff_files=False, dir_path=None, gen_rules=False, review_diffs=False):
+    ''' Find different versions selected by two cs files '''
+
+    if dir_path:
+        chdir(dir_path)
+    cs_a, cs_b, a_not_b, b_not_a, diff_v = diff_cs_versions(csfile_a, csfile_b, bool(view), diff_files)
+
+    if not diff_files and (cs_a and cs_b):
+        if not any([a_not_b, b_not_a, diff_v]):
+            print_indent('Identical: Both CS files select the same files and versions.', 1)
+        else:
+            print_indent('Files selected by ' + (csfile_b or 'CURRENT') + ' and NOT by ' + relpath(csfile_a)  + ':', 1)
+            if not b_not_a:
+                print_indent('None.', 2)
+            else:
+                for item in sort_paths(b_not_a):
+                    if gen_rules:
+                        print_indent(('element ' + abspath(item) + ' ' + cs_b[0][item]['rule']) if cs_b[0][item]['rule']
+                            else ('* ' + relpath(item) + ' has NO rule in ' + (csfile_b or 'CURRENT')), 2)
+                    else:
+                        print_indent(relpath(item) + '   (Rule ' + (cs_b[0][item]['rule'] or 'NONE') + ')', 2)
+
+            print_indent('Files selected by ' + relpath(csfile_a) + ' and NOT by ' + (csfile_b or 'CURRENT') + ':', 1)
+            if not a_not_b:
+                print_indent('None.', 2)
+            else:
+                for item in sort_paths(a_not_b):
+                    if gen_rules:
+                        print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
+                            else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
+                    else:
+                        print_indent(relpath(item) + '   (Rule ' + (cs_a[0][item]['rule'] or 'NONE') + ')', 2)
+
+            print_indent('Files with different versions in ' + (csfile_b or 'CURRENT') + ' vs ' + relpath(csfile_a) + ':', 1)
+            if not diff_v:
+                print_indent('None.', 2)
+            else:
+                different_items = sort_paths(diff_v.keys())
+                different_items_diff = {
+                    abspath(item): {
+                        'print': \
+                            relpath(item) \
+                            + '   ' + diff_v[item][1]['version'] + ' vs ' + diff_v[item][0]['version'] \
+                            + '   (Rule ' + (diff_v[item][1]['rule'] or 'NONE') \
+                            + ' vs ' + (diff_v[item][0]['rule'] or 'NONE') + ')',
+                        'old': item + '@@' + diff_v[item][0]['version'],
+                        'new': item + '@@' + diff_v[item][1]['version'],
+                    }
+                    for item in different_items
+                }
+                different_items_prints = [different_items_diff[abspath(item)]['print'] for item in different_items]
+
+                if review_diffs:
+                    print_indent('(Select which ones you want to review, you can provide a range like 1,2,5-7,10)', 1)
+                    choices = ['ALL'] + different_items_prints + ['EXIT']
+                    choices_indentation = 2
+                    choice = choose_options(choices, choices_indentation)
+                    choice = range_str_to_list(choice)
+                    if len(choice) == 1 and choice[0] == 0:
+                        to_difftool = [abspath(item) for item in different_items]
+                    elif len(choice) == 1 and choice[0] > len(different_items):
+                        return
+                    else:
+                        to_difftool = [abspath(different_items[index-1]) for index in choice]
+                    for diff_i in to_difftool:
+                        difftool(different_items_diff[diff_i]['old'], different_items_diff[diff_i]['new'], background=True)
+
+                else:
+                    if gen_rules:
+                        for item in different_items:
+                            print_indent(('element ' + abspath(item) + ' ' + cs_a[0][item]['rule']) if cs_a[0][item]['rule']
+                                else ('* ' + relpath(item) + ' has NO rule in ' + csfile_a), 2)
+                    else:
+                        print_indent(different_items_prints, 2)
+
+        if csfile_b == None:
+            modified_files, _, _ = get_status(
+                get_modified=True, item=dir_path
+            )
+            if modified_files:
+                print_indent('Warning: The following changes are local, only visible in your view.', 1)
+                print_indent('Modified files:', 2)
+                print_indent((modified_files or ['None.']), 3)
 
 
 def sort_paths(path_list):
