@@ -70,6 +70,12 @@ def difftool(file_a, file_b, background=False):
     return run_cmd([os.environ['DIFFTOOL'], file_a, file_b], background=background)
 
 
+def diff_text(file_a, file_b):
+    ''' Return diffs between two files as text lines '''
+
+    return run_cmd('diff ' + file_a + ' ' + file_b, get_lines=True)[0]
+
+
 def send_mail(subject, body, send_to):
     ''' Send an email using the linux program sendmail '''
 
@@ -459,7 +465,7 @@ def get_file_versions(cs_filename=None, view=False, file_path='', get_latest=Fal
     result = run_cmd(cmd, get_lines=True)[0]
     cs_files = {}
     for item in result:
-        matched = re.search(r'^(?P<filename>.*?)(@@(?P<version>.*?))?\s*(Rule: (?P<rule>.*?))?$', item)
+        matched = re.search(r'^(.*from\s)?(?P<filename>.*?)(@@(?P<version>.*?))?\s*(Rule: (?P<rule>.*?))?$', item)
         if matched:
             if matched.group('filename'):
                 cs_files[matched.group('filename')] = {'version': '', 'rule': ''}
@@ -471,6 +477,25 @@ def get_file_versions(cs_filename=None, view=False, file_path='', get_latest=Fal
     if cs_filename:
         set_cs(cs_file_current)
     return cs_files, cs_file_new if cs_filename else cs_file_current
+
+
+def get_single_file_version(file_path):
+    ''' Get the /branch/version of a single file '''
+
+    return list(get_file_versions(file_path=file_path)[0].values())[0]['version']
+
+
+def get_version_no(curr_version):
+    ''' Get the number corresponding to a file branch/version_no '''
+
+    return int(regex_match(r'^.*\/(?P<version_no>\d+)', curr_version)['version_no'])
+
+
+def change_version_no(current, new_version_no):
+    ''' Change the number only in file@@branch/version_no '''
+
+    version = regex_match(r'^(?P<branch>.*\/)(?P<no>\d+)', current)
+    return version['branch'] + str(new_version_no)
 
 
 def write_to_file(line_list, path):

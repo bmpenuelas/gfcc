@@ -553,7 +553,6 @@ def handler_savecs(res):
     cs_file_name = getattr(res, 'cs-file-name', '')
 
     gfcc_config = utils.get_gfcc_config_from_cs()
-    mail_updates = cs_file_name and gfcc_config and gfcc_config['email_updates_to']
 
     if cs_file_name and not message:
         return utils.print_indent(
@@ -569,16 +568,20 @@ def handler_savecs(res):
         absolute_path = utils.get_cs_path(block, cs_file_name)
         if not absolute_path:
             return
+
     if not utils.exists_try(absolute_path):
         open(absolute_path, 'a').close()
+        current_version = None
     elif force or current_cs != utils.get_cs_text(absolute_path):
+        current_version = utils.get_single_file_version(absolute_path)
         utils.cc_checkx('out', False, absolute_path)
 
     utils.write_to_file(current_cs, absolute_path)
 
+    mail_updates = cs_file_name and current_version and gfcc_config and gfcc_config['email_updates_to']
     if mail_updates:
-        diff = utils.find_modifications([absolute_path])
-        diff = (['<pre style="font: monospace">'] + diff[0].split('\n') + ['</pre>']) if diff else []
+        diff = utils.diff_text(absolute_path + '@@' + current_version, 'current.cs.bak')
+        diff = (['<pre style="font: monospace">'] + diff + ['</pre>']) if diff else []
 
     utils.cc_checkx(
         'in', False, absolute_path,
@@ -616,6 +619,13 @@ parser_setcs.add_argument(
     help='Save current CS in a backup file before applying the new CS.'
 )
 parser_setcs.add_argument(
+    '-p', '--previous',
+    dest='previous',
+    action='store_true',
+    default=False,
+    help='Set to the previous to LATEST version of this cs.'
+)
+parser_setcs.add_argument(
     'cs-file',
     nargs='?',
     help='Name or path of the configspec to apply.',
@@ -625,22 +635,28 @@ def handler_setcs(res):
     block = getattr(res, 'block', None)
     view = getattr(res, 'view', None)
     backup = getattr(res, 'backup', None)
+    previous = getattr(res, 'previous', None)
     cs_file = getattr(res, 'cs-file', None)
 
     cs_to_apply = utils.guess_cs_file(block, view, cs_file)
 
     if cs_to_apply:
-        cs_name = cs_to_apply
         if backup:
-            utils.write_to_file(utils.get_cs_text(), 'current.cs.bak')
-            utils.print_indent('Current CS backup saved in ./current.cs.bak', 0)
+            utils.write_to_file(utils.get_cs_text(), 'my_current.cs.bak')
+            utils.print_indent('Current CS backup saved in ./my_current.cs.bak', 0)
         if view:
             cs_to_apply = utils.get_cs_text(cs_to_apply, view)
             if not cs_to_apply:
                 utils.print_indent('Error: View cs could not be found.', 0)
                 return
+        elif previous:
+            cs_to_apply = utils.change_version_no(
+                cs_to_apply + '@@' + utils.get_single_file_version(cs_to_apply),
+                utils.get_version_no(utils.get_single_file_version(cs_to_apply)) - 1
+            )
+
         utils.set_cs(cs_to_apply)
-        utils.print_indent('Current CS set to: ' + cs_name, 0)
+        utils.print_indent('Current CS set to: ' + cs_to_apply, 0)
     else:
         utils.print_indent('Error: CS file not found. It could not be identified with the provided parameters or found in your filesystem, maybe not visible due to current cs.', 0)
         return

@@ -76,6 +76,8 @@ With due respect to the inevitable differences, the name of the shared configspe
 
 `-k` `--backup` Save current CS in a backup file before applying the new CS.
 
+`-p` `--previous` Set the current CS to the previous to LAST version of the provided CS.
+
 `[cs-file]` Name or path of the configspec to apply.
 
 <br>
