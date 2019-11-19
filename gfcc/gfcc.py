@@ -574,7 +574,6 @@ def handler_savecs(res):
         current_version = None
     elif force or current_cs != utils.get_cs_text(absolute_path):
         current_version = utils.get_single_file_version(absolute_path)
-        utils.cc_checkx('out', False, absolute_path)
 
     utils.write_to_file(current_cs, absolute_path)
 
@@ -588,6 +587,7 @@ def handler_savecs(res):
         message=message or ('Saved ' + utils.get_date_string()), identical=force
     )
     utils.set_cs(current_cs)
+    utils.cc_checkx('out', False, absolute_path)
     remove('current.cs.bak')
     utils.print_indent('Current version of your CS saved in: ' + relpath(absolute_path), 1)
 
@@ -654,6 +654,10 @@ def handler_setcs(res):
                 cs_to_apply + '@@' + utils.get_single_file_version(cs_to_apply),
                 utils.get_version_no(utils.get_single_file_version(cs_to_apply)) - 1
             )
+        else:
+            if utils.is_checked_out(cs_to_apply):
+                utils.cc_checkx('un', False, cs_to_apply)
+            utils.cc_checkx('out', False, cs_to_apply)
 
         utils.set_cs(cs_to_apply)
         utils.print_indent('Current CS set to: ' + cs_to_apply, 0)
