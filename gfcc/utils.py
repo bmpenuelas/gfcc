@@ -13,7 +13,7 @@ from   datetime import datetime
 
 # Constants
 INDENTATION = '  '
-TEMPORARY_FILE_EXTENSIONS = ('~', '.contrib', '.keep', '.bak',)
+TEMPORARY_FILE_EXTENSIONS = ('~', '.contrib', '.keep', '.bak', '.swp', '.mkelem')
 DEFAULT_CS = [
     'element * CHECKEDOUT',
     'element * /main/LATEST',
@@ -483,6 +483,13 @@ def get_single_file_version(file_path):
     ''' Get the /branch/version of a single file '''
 
     return list(get_file_versions(file_path=file_path)[0].values())[0]['version']
+
+
+def is_checked_out(file_path):
+    ''' Check whether a single file is checked out '''
+    print(list(get_file_versions(file_path=file_path)[0].values())[0]['rule'])
+
+    return list(get_file_versions(file_path=file_path)[0].values())[0]['rule'] == 'CHECKEDOUT'
 
 
 def get_version_no(curr_version):
