@@ -206,6 +206,19 @@ If no parameters are specified, *recursive* from *cwd* will be performed.
 <br>
 <br>
 
+:pushpin: **`gfcc copyco`**
+
+| description | clearcase actions |
+| --- | --- |
+| Copy the modifications in a checked-out file from another view into yours. | Check out the element, `setview` to the target view, and copy the desired file from it. |
+
+`-v` `--view` View where the modified file is.
+
+`[item(s)]` File(s) to copy.
+
+<br>
+<br>
+
 :pushpin: **`gfcc difflabels`**
 
 | description | clearcase actions |

@@ -329,6 +329,31 @@ def handler_uncheckout(res):
 parser_uncheckout.set_defaults(func=handler_uncheckout)
 
 
+# Subparser for: gfcc copyco
+parser_copyco = subparsers.add_parser('copyco', aliases=['cco'], help='Copy the checked-out modified version from some other view into yours.')
+parser_copyco.add_argument(
+    '-v', '--view',
+    dest='view',
+    default=None,
+    required=True,
+    help='Perform the search on another view.'
+)
+parser_copyco.add_argument(
+    'items',
+    nargs='*',
+    help='File(s)/dir(s) to copyco.',
+)
+
+def handler_copyco(res):
+    view = getattr(res, 'view', None)
+    items = getattr(res, 'items', None)
+
+    for item in items:
+        utils.copy_co(item, view)
+
+parser_copyco.set_defaults(func=handler_copyco)
+
+
 # Subparser for: gfcc edcs
 parser_edcs = subparsers.add_parser('edcs', aliases=['ed'], help='Edit current cs.')
 parser_edcs.add_argument(
@@ -360,6 +385,13 @@ parser_find.add_argument(
     help='Find files for which a newer version exists.'
 )
 parser_find.add_argument(
+    '-g', '--gen_rules',
+    dest='gen_rules',
+    action='store_true',
+    default=False,
+    help='Generate cs rules so that you get the found versions.'
+)
+parser_find.add_argument(
     '-v', '--view',
     dest='view',
     default=None,
@@ -381,6 +413,7 @@ def handler_find(res):
     item = getattr(res, 'item', None)
     latest = getattr(res, 'latest', None)
     not_latest = getattr(res, 'not-latest', None)
+    gen_rules = getattr(res, 'gen_rules', None)
     view = getattr(res, 'view', None)
     directory = getattr(res, 'directory', None)
 
@@ -403,9 +436,16 @@ def handler_find(res):
             file_i for file_i in files_versions
             if ((file_i in files_latest_versions) and (files_versions[file_i]['version'] != files_latest_versions[file_i]['version']))]
 
-        utils.print_indent('Files not at their latest version ' + ((' in view ' + view) if view else '') + ((' in ' + directory) if directory else '') + ': ', 0)
-        result_text = [file_i + '   (selected: ' + files_versions[file_i]['version'] + ' vs latest: ' + files_latest_versions[file_i]['version']  + ')'for file_i in files_not_latest]
-        utils.print_indent(result_text or 'None.', 1)
+        utils.print_indent( \
+            ('Rules for f' if gen_rules else 'F') + 'iles not at their latest version ' + \
+            ((' in view ' + view) if view else '') + \
+            ((' in ' + directory) if directory else '') + ': ', 0)
+        if gen_rules:
+            for file_i in files_not_latest:
+                utils.print_rule(file_i, files_latest_versions[file_i]['version'], 0)
+        else:
+            result_text = [file_i + '   (selected: ' + files_versions[file_i]['version'] + ' vs latest: ' + files_latest_versions[file_i]['version']  + ')'for file_i in files_not_latest]
+            utils.print_indent(result_text or 'None.', 1)
 
 
 parser_find.set_defaults(func=handler_find)
@@ -592,7 +632,10 @@ def handler_savecs(res):
     utils.print_indent('Current version of your CS saved in: ' + relpath(absolute_path), 1)
 
     if mail_updates:
-        mail_body = [message] + 2*['\n'] + diff
+        new_version = utils.change_version_no(current_version, utils.get_version_no(current_version) + 1)
+        mail_body = ['Message: ' + message + '\n'] + \
+            ['New version: ' + new_version + '\n'] + \
+            ['Changes:\n'] + diff
         utils.send_mail('CS Updated: ' + cs_file_name, mail_body, gfcc_config['email_updates_to'])
         utils.print_indent('Sent update email to ' + ', '.join(gfcc_config['email_updates_to']), 2)
 

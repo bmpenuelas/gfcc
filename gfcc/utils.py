@@ -6,7 +6,7 @@ import readline
 
 from   os       import getcwd, walk, remove, chdir
 from   os.path  import abspath, join, isdir, relpath, dirname, split, exists
-from   shutil   import rmtree
+from   shutil   import rmtree, copyfile
 from   pathlib  import Path
 from   datetime import datetime
 
@@ -101,7 +101,7 @@ def send_mail(subject, body, send_to):
     remove(temp_file)
 
 
-def print_indent(text, indent):
+def print_indent(text, indent=0):
     ''' Print with the provided level of indentation '''
 
     if isinstance(text, (tuple, list)):
@@ -110,13 +110,22 @@ def print_indent(text, indent):
         return print(indent * INDENTATION + text)
 
 
+def print_rule(item, rule, indent=0):
+
+    ''' Print a clearcase cs rule '''
+
+    print_indent('element ' + abspath(item) + ' ' + rule, indent)
+
+
 def get_date_string():
+
     ''' Current date as string '''
 
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def range_str_to_list(range_str):
+
     ''' Take a string like '1,2,5-7,10' and turn it into [1, 2, 5, 6, 7, 10] '''
 
     return sum(((list(range(*[int(j) + k for k,j in enumerate(i.split('-'))]))
@@ -124,6 +133,7 @@ def range_str_to_list(range_str):
 
 
 def choose_options(options, indent=0, choose_message='Choice: '):
+
     ''' Show a list of options and return the chosen index '''
 
     for (index, option) in enumerate(options):
@@ -135,6 +145,7 @@ def choose_options(options, indent=0, choose_message='Choice: '):
 
 
 def to_abs_path(rel_path):
+
     ''' Shorthand for list of paths to abspath '''
 
     if isinstance(rel_path, (list, tuple)):
@@ -144,6 +155,7 @@ def to_abs_path(rel_path):
 
 
 def to_rel_path(abs_path, from_path=None):
+
     ''' Shorthand for list of paths to relpath '''
 
     if isinstance(abs_path, (list, tuple)):
@@ -153,6 +165,7 @@ def to_rel_path(abs_path, from_path=None):
 
 
 def regex_match(expression, text):
+
     ''' Shorthand for getting regex matching groups '''
 
     search_result = re.match(expression, text)
@@ -161,6 +174,7 @@ def regex_match(expression, text):
 
 
 def get_gfcc_config_from_cs(cs_filename=None, view=False):
+
     ''' A JSON can be included in the cs comments as gfcc_config={...} '''
 
     cs_text_lines = get_cs_text(cs_filename, view)
@@ -180,6 +194,7 @@ def get_gfcc_config_from_cs(cs_filename=None, view=False):
 
 
 def list_checked_out(directory=None, absolute=False):
+
     ''' Take the whole view/directory and returns abs/rel paths of the files '''
 
     clearcase_cmd_list_checked_out = ['cleartool', 'lsco', '-cview', '-a', '-s']
@@ -194,6 +209,7 @@ def list_checked_out(directory=None, absolute=False):
 
 
 def find_modifications(to_check, gui=False):
+
     ''' Take one or a list of abs or rel paths and return the differences reported by cleartool '''
 
     if isinstance(to_check, (list, tuple)):
@@ -209,6 +225,7 @@ def find_modifications(to_check, gui=False):
 
 
 def filename_from_diff(modification):
+
     '''Get the filename from a diff with predecessor'''
 
     if not modification:
@@ -218,6 +235,7 @@ def filename_from_diff(modification):
 
 
 def list_untracked(directory):
+
     '''List non-versioned files'''
 
     directory = directory or '.'
@@ -231,6 +249,7 @@ def list_untracked(directory):
 
 
 def cc_lshist(item, lines=15, recursive=False, gui=False):
+
     '''ClearCase list history'''
 
     clearcase_cmd_lshist = ['cleartool', 'lshistory'] \
@@ -244,6 +263,7 @@ def cc_lshist(item, lines=15, recursive=False, gui=False):
         return result[0]
 
 def cc_xlsvtree(item):
+
     '''ClearCase open tree'''
 
     clearcase_cmd_xlsvtree = ['xclearcase', '-vtree', item]
@@ -251,6 +271,7 @@ def cc_xlsvtree(item):
 
 
 def cc_get_selected(item):
+
     '''ClearCase get items selected by current cs rules'''
 
     if isinstance(item, (list, tuple)):
@@ -261,7 +282,19 @@ def cc_get_selected(item):
         return regex_match(r'^(?P<cc_path>.*?)\s', result[0][0])['cc_path']
 
 
+def start_view(view):
+
+    ''' Makes a view available in /view/... '''
+
+    cmd = 'cleartool startview ' + view
+    result = run_cmd(cmd, True)
+    if result[1]:
+        print_indent(result[1])
+    return result
+
+
 def cc_checkout(to_cc, verbose_indent=1):
+
     '''ClearCase checkout wrapper'''
 
     if isinstance(to_cc, (list, tuple)):
@@ -274,8 +307,20 @@ def cc_checkout(to_cc, verbose_indent=1):
         return result
 
 
+def copy_co(item, view):
+
+    ''' Copy a checked-out file into a checked-out in the current view '''
+
+    item_path = abspath(item)
+    cc_checkout(item_path)
+    start_view(view)
+    copyfile('/view/' + view + item_path, item_path)
+    print_indent('Copied ' + item + ' from ' + view, 1)
+
+
 def cc_checkin(to_cc, message, identical=False, verbose_indent=1):
-    '''ClearCase checkin wrapper'''
+
+    ''' ClearCase checkin wrapper '''
 
     if isinstance(to_cc, (list, tuple)):
         return [cc_checkin(element, message, identical, verbose_indent) for element in to_cc]
@@ -294,7 +339,8 @@ def cc_checkin(to_cc, message, identical=False, verbose_indent=1):
 
 
 def cc_uncheckout(to_cc, keep, verbose_indent=1):
-    '''ClearCase uncheckout wrapper'''
+
+    ''' ClearCase uncheckout wrapper '''
 
     if isinstance(to_cc, (list, tuple)):
         return [cc_uncheckout(element, keep, verbose_indent) for element in to_cc]
@@ -307,7 +353,8 @@ def cc_uncheckout(to_cc, keep, verbose_indent=1):
 
 
 def cc_mkelem(to_cc, message, verbose_indent=1):
-    '''ClearCase make element wrapper'''
+
+    ''' ClearCase make element wrapper '''
 
     if isinstance(to_cc, (list, tuple)):
         return [cc_mkelem(element, message) for element in to_cc]
@@ -327,7 +374,8 @@ def cc_mkelem(to_cc, message, verbose_indent=1):
 
 
 def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
-    '''Abstraction of all the ClearCase check-x operations'''
+
+    ''' Abstraction of all the ClearCase check-x operations '''
 
     config = {
         'out': {
@@ -402,7 +450,8 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
 
 def get_status(get_modified=False, get_untracked=False, get_checkedout_unmodified=False,
                item=None, whole_view=False):
-    '''Collect checked-out, modified, untracked if requested'''
+
+    ''' Collect checked-out, modified, untracked if requested '''
 
     directory = item if (item and isdir(item)) else (None if whole_view else getcwd())
     checked_out_files = list_checked_out(directory)
@@ -416,7 +465,8 @@ def get_status(get_modified=False, get_untracked=False, get_checkedout_unmodifie
 
 
 def get_working_view_name():
-    "Get current view name as string"
+
+    " Get current view name as string "
 
     result_pwv = run_cmd('cleartool pwv', get_lines=True)
     if not any(['Set view: ** NONE **' in line for line in result_pwv[0]]):
@@ -427,7 +477,8 @@ def get_working_view_name():
 
 
 def get_cs_text(cs_filename=None, view=False):
-    "Get currently applied CS as list of lines"
+
+    " Get currently applied CS as list of lines "
 
     if view and cs_filename:
         result_provided_name = run_cmd('cleartool catcs -tag ' + cs_filename, get_lines=True)
@@ -447,7 +498,8 @@ def get_cs_text(cs_filename=None, view=False):
 
 
 def get_file_versions(cs_filename=None, view=False, file_path='', get_latest=False):
-    '''Get the files selected by a given configspec file and their versions'''
+
+    ''' Get the files selected by a given configspec file and their versions '''
 
     cs_file_current = get_cs_text()
     if cs_filename:
@@ -480,6 +532,7 @@ def get_file_versions(cs_filename=None, view=False, file_path='', get_latest=Fal
 
 
 def get_single_file_version(file_path):
+
     ''' Get the /branch/version of a single file '''
 
     return list(get_file_versions(file_path=file_path)[0].values())[0]['version']
@@ -493,12 +546,14 @@ def is_checked_out(file_path):
 
 
 def get_version_no(curr_version):
+
     ''' Get the number corresponding to a file branch/version_no '''
 
     return int(regex_match(r'^.*\/(?P<version_no>\d+)', curr_version)['version_no'])
 
 
 def change_version_no(current, new_version_no):
+
     ''' Change the number only in file@@branch/version_no '''
 
     version = regex_match(r'^(?P<branch>.*\/)(?P<no>\d+)', current)
@@ -506,7 +561,8 @@ def change_version_no(current, new_version_no):
 
 
 def write_to_file(line_list, path):
-    '''Create a file with the provided lines'''
+
+    ''' Create a file with the provided lines '''
 
     with open(path, 'w+') as destination_file:
         file_lines = [line.rstrip() + '\n' for line in line_list]
@@ -516,7 +572,8 @@ def write_to_file(line_list, path):
 
 
 def set_cs(new_cs):
-    '''Set the current cs to the provided file or list of lines'''
+
+    ''' Set the current cs to the provided file or list of lines '''
 
     if isinstance(new_cs, (list, tuple)):
         write_to_file(new_cs, 'temp.cs')
@@ -528,7 +585,8 @@ def set_cs(new_cs):
 
 
 def diff_cs_versions(csfile_a, csfile_b, view=False, diff_files=False):
-    '''Find which files and versions selected by two cs differ'''
+
+    ''' Find which files and versions selected by two cs differ '''
 
     cs_a = get_file_versions(csfile_a, view=view)
     cs_b = get_file_versions(csfile_b)
@@ -558,6 +616,7 @@ def diff_cs_versions(csfile_a, csfile_b, view=False, diff_files=False):
 
 
 def versions_diff(cs_files_a, cs_files_b):
+
     ''' Find differences in selected files sets '''
 
     set_a = set(cs_files_a.keys())
@@ -578,6 +637,7 @@ def versions_diff(cs_files_a, cs_files_b):
 
 
 def diffcs(csfile_a, csfile_b, view=None, diff_files=False, dir_path=None, gen_rules=False, review_diffs=False):
+
     ''' Find different versions selected by two cs files '''
 
     if dir_path:
@@ -663,14 +723,16 @@ def diffcs(csfile_a, csfile_b, view=None, diff_files=False, dir_path=None, gen_r
 
 
 def sort_paths(path_list):
-    '''Sort paths in lexicographical order'''
+
+    ''' Sort paths in lexicographical order '''
 
     sorted_paths = sorted([[filepath, Path(filepath)] for filepath in path_list], key = lambda x: x[1])
     return [str(i[0]) for i in sorted_paths]
 
 
 def get_block_name_path(blockname=None):
-    '''Attempt to guess the current block path'''
+
+    ''' Attempt to guess the current block path '''
 
     if not ('PROJVOB' in os.environ):
         return None, None
@@ -686,7 +748,8 @@ def get_block_name_path(blockname=None):
 
 
 def find_save_cs_dir(blockname=None, user=False, code_review=False):
-    '''Get the path to the directory where a given cs file should be stored'''
+
+    ''' Get the path to the directory where a given cs file should be stored '''
 
     block_path = get_block_name_path(blockname)[1]
     if not block_path:
@@ -717,7 +780,8 @@ def find_save_cs_dir(blockname=None, user=False, code_review=False):
 
 
 def get_cs_path(block=None, cs_file_name=None):
-    '''Guess the full path were a given cs can be found'''
+
+    ''' Guess the full path were a given cs can be found '''
 
     is_user = not cs_file_name
     save_cs_dir = find_save_cs_dir(block, is_user)
@@ -728,7 +792,8 @@ def get_cs_path(block=None, cs_file_name=None):
 
 
 def guess_cs_file(block, view, cs_file):
-    '''Given a name, try to guess where it would be stored and the full file path'''
+
+    ''' Given a name, try to guess where it would be stored and the full file path '''
 
     guessed_csfile = None
     if view and cs_file:
