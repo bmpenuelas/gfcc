@@ -62,6 +62,7 @@ def rm(to_remove, r=False):
 
 
 def difftool(file_a, file_b, background=False):
+
     ''' Open a diff in difftool set by env variable '''
 
     if not os.environ['DIFFTOOL']:
@@ -71,12 +72,14 @@ def difftool(file_a, file_b, background=False):
 
 
 def diff_text(file_a, file_b):
+
     ''' Return diffs between two files as text lines '''
 
     return run_cmd('diff ' + file_a + ' ' + file_b, get_lines=True)[0]
 
 
 def send_mail(subject, body, send_to):
+
     ''' Send an email using the linux program sendmail '''
 
     header = [
@@ -144,6 +147,13 @@ def choose_options(options, indent=0, choose_message='Choice: '):
     return(selection)
 
 
+def find_lines(regex, file_lines):
+
+    ''' Find the lines which match a given regex in the provided file '''
+
+    return [index for index, line in enumerate(file_lines) if re.match(regex, line)]
+
+
 def to_abs_path(rel_path):
 
     ''' Shorthand for list of paths to abspath '''
@@ -180,7 +190,7 @@ def get_gfcc_config_from_cs(cs_filename=None, view=False):
     cs_text_lines = get_cs_text(cs_filename, view)
     cfg_string = ''
     for line in cs_text_lines:
-        cfg_match = re.match(r'#+\s*gfcc_config\s*=\s*(\{.*)', line)
+        cfg_match = re.match(r'\s*#+\s*gfcc_config\s*=\s*(\{.*)', line)
         comment_match = re.match(r'#+(.*)', line)
         if cfg_string:
             if comment_match:
@@ -318,7 +328,7 @@ def copy_co(item, view):
     print_indent('Copied ' + item + ' from ' + view, 1)
 
 
-def cc_checkin(to_cc, message, identical=False, verbose_indent=1):
+def cc_checkin(to_cc, message, identical=False, verbose_indent=1, add_rule_to_cs=False):
 
     ''' ClearCase checkin wrapper '''
 
@@ -330,9 +340,15 @@ def cc_checkin(to_cc, message, identical=False, verbose_indent=1):
         if verbose_indent:
             search_version = re.search(r'^.*?version "(?P<version>.*?)"', result[0][0])
             if search_version and search_version.group('version'):
-                print_indent('Checked in: ' + to_cc, verbose_indent)
-                print_indent('Add the following rule to your cs to select this version:', verbose_indent + 1)
-                print_indent('element ' + to_cc + ' ' + search_version.group('version'), verbose_indent + 1)
+                rule = 'element ' + to_cc + ' ' + search_version.group('version')
+                if verbose_indent != None:
+                    print_indent('Checked in: ' + to_cc, verbose_indent)
+                    if not add_rule_to_cs:
+                        print_indent('Add the following rule to your cs to select this version:', verbose_indent + 1)
+                        print_indent(rule, verbose_indent + 1)
+                if add_rule_to_cs:
+                    print_indent('Added to your cs.', verbose_indent + 1)
+                    add_rules_to_current_cs([rule])
             else:
                 print_indent('Error checking-in: ' + to_cc, verbose_indent)
         return result
@@ -352,7 +368,7 @@ def cc_uncheckout(to_cc, keep, verbose_indent=1):
         return result
 
 
-def cc_mkelem(to_cc, message, verbose_indent=1):
+def cc_mkelem(to_cc, message, verbose_indent=1, add_rule_to_cs=False):
 
     ''' ClearCase make element wrapper '''
 
@@ -369,7 +385,7 @@ def cc_mkelem(to_cc, message, verbose_indent=1):
                 print_indent('Add the following rule to your cs to select this version:', verbose_indent + 1)
                 print_indent('element ' + to_cc + ' ' + search_version.group('version'), verbose_indent + 1)
             print_indent('Checking-in updated containing directory', verbose_indent)
-        cc_checkin(dirname(abspath(to_cc)), 'Added file ' + to_cc, verbose_indent=verbose_indent)
+        cc_checkin(dirname(abspath(to_cc)), 'Added file ' + to_cc, verbose_indent=verbose_indent, add_rule_to_cs=add_rule_to_cs)
         return mk_result
 
 
@@ -386,7 +402,7 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
         'in': {
             'succes_str': 'checked in',
             'fn': cc_checkin,
-            'parameters': ['message', 'identical']
+            'parameters': ['message', 'identical', 'add_rule_to_cs']
         },
         'un': {
             'succes_str': 'checkout cancelled',
@@ -396,7 +412,7 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
         'mk': {
             'succes_str': 'created element',
             'fn': cc_mkelem,
-            'parameters': ['message']
+            'parameters': ['message', 'add_rule_to_cs']
         },
         'reserved_str': 'is checked out reserved',
         'not_in_cc_str': 'not an element',
@@ -446,6 +462,29 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
                 if False: # Use for debug cc_checkx
                     print_indent('Unexpected result for ' + file_i, 1)
                     print_indent(result, 1)
+
+
+def add_rules_to_current_cs(rules):
+    configspec = get_cs_text()
+
+    comment_line = None
+    checkout_line = None
+    found_comment = find_lines(r'\s*#+\s*Work in progress:', configspec)
+    if found_comment:
+        comment_line = found_comment[0] + 1
+    else:
+        found_checkout = find_lines(r'.*element.*\bCHECKEDOUT\b', configspec)
+        if found_checkout:
+            checkout_line = found_checkout[0] + 1
+
+    if comment_line:
+        configspec[comment_line:comment_line] = rules
+    elif checkout_line:
+        configspec[checkout_line:checkout_line] = ['', '', '# Work in progress:'] + rules + ['', '']
+    else:
+        print_indent('Error: CHECKEDOUT rule not found in the current cs.')
+
+    set_cs(configspec)
 
 
 def get_status(get_modified=False, get_untracked=False, get_checkedout_unmodified=False,

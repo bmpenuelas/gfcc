@@ -268,6 +268,13 @@ parser_checkin.add_argument(
     help='Checkin even if files are identical.'
 )
 parser_checkin.add_argument(
+    '-da', '--dont-add-to-cs',
+    dest='dont_add_to_cs',
+    action='store_true',
+    default=False,
+    help='Checkin even if files are identical.'
+)
+parser_checkin.add_argument(
     'items',
     nargs='*',
     help='File(s) or dir(s) to check-in.',
@@ -278,13 +285,14 @@ def handler_checkin(res):
     recursive = getattr(res, 'recursive', None)
     untracked = getattr(res, 'untracked', None)
     identical = getattr(res, 'identical', None)
+    dont_add_to_cs = getattr(res, 'dont_add_to_cs', None)
     items = getattr(res, 'items', None)
     recursive = recursive if items else True
     items = items or [getcwd()]
 
     for item in items:
         item = abspath(item)
-        utils.cc_checkx('in', recursive, item, untracked, message=message, identical=identical)
+        utils.cc_checkx('in', recursive, item, untracked, message=message, identical=identical, add_rule_to_cs=(not dont_add_to_cs))
 
 parser_checkin.set_defaults(func=handler_checkin)
 
@@ -625,7 +633,9 @@ def handler_savecs(res):
 
     utils.cc_checkx(
         'in', False, absolute_path,
-        message=message or ('Saved ' + utils.get_date_string()), identical=force
+        message=message or ('Saved ' + utils.get_date_string()),
+        identical=force,
+        add_rule_to_cs=False
     )
     utils.set_cs(current_cs)
     remove('current.cs.bak')
@@ -699,7 +709,7 @@ def handler_setcs(res):
             )
 
         utils.set_cs(cs_to_apply)
-        utils.print_indent('Current CS set to: ' + cs_to_apply, 0)
+        utils.print_indent('Current CS set to: ' + (cs_to_apply if not view else ('current cs of ' + view)), 0)
     else:
         utils.print_indent('Error: CS file not found. It could not be identified with the provided parameters or found in your filesystem, maybe not visible due to current cs.', 0)
         return
