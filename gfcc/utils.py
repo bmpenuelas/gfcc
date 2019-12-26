@@ -348,7 +348,7 @@ def cc_checkin(to_cc, message, identical=False, verbose_indent=1, add_rule_to_cs
                         print_indent(rule, verbose_indent + 1)
                 if add_rule_to_cs:
                     print_indent('Added to your cs.', verbose_indent + 1)
-                    add_rules_to_current_cs([rule])
+                    add_rule_to_current_cs(rule)
             else:
                 print_indent('Error checking-in: ' + to_cc, verbose_indent)
         return result
@@ -464,12 +464,26 @@ def cc_checkx(select, recursive, selected_item, untracked=False, **kwargs):
                     print_indent(result, 1)
 
 
-def add_rules_to_current_cs(rules):
+def add_rule_to_current_cs(rule):
+    block_subdirs = ('rtl', 'tb', 'syn', 'sim', 'cs')
     configspec = get_cs_text()
 
     comment_line = None
     checkout_line = None
-    found_comment = find_lines(r'\s*#+\s*Work in progress:', configspec)
+
+    current_block = get_block_name_path()[1]
+    rule_subdir = None
+    for subdir in block_subdirs:
+        test_subdir = join(abspath(current_block), subdir) + os.sep
+        if (' ' + test_subdir) in rule:
+            rule_subdir = subdir
+
+    found_comment = None
+    if rule_subdir:
+        found_comment = find_lines(r'\s*#+\s*(' + rule_subdir + '|' + rule_subdir.upper() + ')', configspec)
+    if not found_comment:
+        found_comment = find_lines(r'\s*#+\s*Work in progress:', configspec)
+
     if found_comment:
         comment_line = found_comment[0] + 1
     else:
@@ -478,9 +492,9 @@ def add_rules_to_current_cs(rules):
             checkout_line = found_checkout[0] + 1
 
     if comment_line:
-        configspec[comment_line:comment_line] = rules
+        configspec[comment_line:comment_line] = [rule]
     elif checkout_line:
-        configspec[checkout_line:checkout_line] = ['', '', '# Work in progress:'] + rules + ['', '']
+        configspec[checkout_line:checkout_line] = ['', '', '# Work in progress:'] + [rule] + ['', '']
     else:
         print_indent('Error: CHECKEDOUT rule not found in the current cs.')
 
@@ -578,8 +592,8 @@ def get_single_file_version(file_path):
 
 
 def is_checked_out(file_path):
+
     ''' Check whether a single file is checked out '''
-    print(list(get_file_versions(file_path=file_path)[0].values())[0]['rule'])
 
     return list(get_file_versions(file_path=file_path)[0].values())[0]['rule'] == 'CHECKEDOUT'
 
@@ -597,6 +611,16 @@ def change_version_no(current, new_version_no):
 
     version = regex_match(r'^(?P<branch>.*\/)(?P<no>\d+)', current)
     return version['branch'] + str(new_version_no)
+
+
+def get_previous_to_latest(file_path):
+
+    ''' Return the version previous to LATEST of the provided file '''
+
+    return change_version_no(
+        file_path + '@@' + get_single_file_version(file_path),
+        get_version_no(get_single_file_version(file_path)) - 1
+    )
 
 
 def write_to_file(line_list, path):

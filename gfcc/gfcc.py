@@ -493,6 +493,13 @@ parser_diffcs.add_argument(
     help='Generate cs rules so that you get the same versions as others.'
 )
 parser_diffcs.add_argument(
+    '-p', '--previous',
+    dest='previous',
+    action='store_true',
+    default=False,
+    help='Diff against the previous to LATEST version of the provided cs.'
+)
+parser_diffcs.add_argument(
     '-r', '--review',
     dest='review',
     action='store_true',
@@ -511,6 +518,7 @@ def handler_diffcs(res):
     block = getattr(res, 'block', None)
     view = getattr(res, 'view', None)
     gen_rules = getattr(res, 'gen_rules', None)
+    previous = getattr(res, 'previous', None)
     review = getattr(res, 'review', None)
     cs_file = getattr(res, 'cs-file', None)
 
@@ -518,8 +526,13 @@ def handler_diffcs(res):
     if not csfile_a:
         utils.print_indent('Error: cannot find the cs files to compare. Try providing the --block or the filepaths.', 0)
         return
-    if len(cs_file) < 2 or view:
+    if view:
         csfile_b = None
+    elif len(cs_file) < 2:
+        if previous:
+            csfile_b = utils.get_previous_to_latest(csfile_a)
+        else:
+            csfile_b = None
     elif len(cs_file) == 2:
         csfile_b = abspath(cs_file[1])
     else:
@@ -679,6 +692,13 @@ parser_setcs.add_argument(
     help='Set to the previous to LATEST version of this cs.'
 )
 parser_setcs.add_argument(
+    '-s', '--setup',
+    dest='setup',
+    action='store_true',
+    default=False,
+    help='Set the environment up applying modules and environment variables.'
+)
+parser_setcs.add_argument(
     'cs-file',
     nargs='?',
     help='Name or path of the configspec to apply.',
@@ -689,6 +709,7 @@ def handler_setcs(res):
     view = getattr(res, 'view', None)
     backup = getattr(res, 'backup', None)
     previous = getattr(res, 'previous', None)
+    setup = getattr(res, 'setup', None)
     cs_file = getattr(res, 'cs-file', None)
 
     cs_to_apply = utils.guess_cs_file(block, view, cs_file)
@@ -703,13 +724,24 @@ def handler_setcs(res):
                 utils.print_indent('Error: View cs could not be found.', 0)
                 return
         elif previous:
-            cs_to_apply = utils.change_version_no(
-                cs_to_apply + '@@' + utils.get_single_file_version(cs_to_apply),
-                utils.get_version_no(utils.get_single_file_version(cs_to_apply)) - 1
-            )
+            cs_to_apply = utils.get_previous_to_latest(cs_to_apply)
 
         utils.set_cs(cs_to_apply)
         utils.print_indent('Current CS set to: ' + (cs_to_apply if not view else ('current cs of ' + view)), 0)
+
+        if setup:
+            gfcc_config = utils.get_gfcc_config_from_cs()
+            if gfcc_config:
+                utils.print_indent('Copy and run the following commands to get the environment configured:')
+                if ('modules' in gfcc_config):
+                    for module_i in gfcc_config['modules']:
+                        utils.print_indent('module add ' +  module_i, 1)
+                if ('env' in gfcc_config):
+                    for env_i in gfcc_config['env']:
+                        utils.print_indent('setenv ' + env_i[0] + ' ' + env_i[1], 1)
+            else:
+                utils.print_indent('No gfcc_config found in this cs.')
+
     else:
         utils.print_indent('Error: CS file not found. It could not be identified with the provided parameters or found in your filesystem, maybe not visible due to current cs.', 0)
         return
